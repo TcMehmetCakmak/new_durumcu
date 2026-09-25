@@ -1,0 +1,4677 @@
+<!DOCTYPE html>
+
+<html lang="tr">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <meta
+        name="theme-color"
+        content="#e63946"
+    >
+
+    <meta
+        name="description"
+        content="Dürümcü online sipariş uygulaması"
+    >
+
+    <link
+        rel="manifest"
+        href="manifest.json"
+    >
+
+    <link
+        rel="icon"
+        href="icon-192.png"
+    >
+
+    <title>Dürümcü Sipariş</title>
+
+    <style>
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: #f5f5f5;
+            color: #222;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 500px;
+            margin: auto;
+            padding: 20px;
+        }
+
+        .card {
+            background: white;
+            border-radius: 18px;
+            padding: 22px;
+            margin-bottom: 18px;
+            box-shadow: 0 5px 20px rgba(0,0,0,.08);
+        }
+
+        h1 {
+            text-align: center;
+        }
+
+        h2 {
+            margin-top: 0;
+        }
+
+        .product {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 0;
+            border-bottom: 1px solid #eee;
+        }
+
+        .product:last-child {
+            border-bottom: none;
+        }
+
+        .product-name {
+            font-weight: bold;
+        }
+
+        .price {
+            color: #777;
+            font-size: 14px;
+            margin-top: 5px;
+        }
+
+        .quantity {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .quantity button {
+            width: 40px;
+            height: 40px;
+            border: none;
+            border-radius: 50%;
+            background: #e63946;
+            color: white;
+            font-size: 22px;
+            cursor: pointer;
+        }
+
+        .quantity span {
+            min-width: 25px;
+            text-align: center;
+            font-size: 20px;
+            font-weight: bold;
+        }
+
+        input,
+        textarea {
+            width: 100%;
+            padding: 13px;
+            margin-top: 8px;
+            margin-bottom: 15px;
+            border: 1px solid #ddd;
+            border-radius: 10px;
+            font-size: 16px;
+        }
+
+        textarea {
+            min-height: 90px;
+            resize: vertical;
+        }
+
+        .payment-option {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            border: 1px solid #ddd;
+            border-radius: 10px;
+            padding: 13px;
+            margin-bottom: 10px;
+        }
+
+        .payment-option input {
+            width: auto;
+            margin: 0;
+        }
+
+        .total {
+            display: flex;
+            justify-content: space-between;
+            font-size: 20px;
+            font-weight: bold;
+            margin-top: 20px;
+        }
+
+        .main-button {
+            width: 100%;
+            padding: 16px;
+            border: none;
+            border-radius: 12px;
+            color: white;
+            font-size: 17px;
+            font-weight: bold;
+            cursor: pointer;
+            margin-top: 12px;
+        }
+
+        .order-button {
+            background: #e63946;
+        }
+
+        .whatsapp-button {
+            background: #25D366;
+        }
+
+        .back-button {
+            background: #777;
+        }
+
+        .cancel-button {
+            background: #dc3545;
+        }
+
+        .summary-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 12px 0;
+            border-bottom: 1px solid #eee;
+        }
+
+        .summary-total {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 20px;
+            font-size: 22px;
+            font-weight: bold;
+        }
+
+        .summary-info {
+            background: #f7f7f7;
+            padding: 15px;
+            border-radius: 10px;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        .success {
+            text-align: center;
+            font-size: 42px;
+        }
+
+        .small {
+            text-align: center;
+            color: #777;
+        }
+
+        /* =========================================
+           SİPARİŞ BAŞLIĞI + KONUM
+        ========================================= */
+
+        .order-title-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            margin-bottom: 18px;
+        }
+
+        .order-title-row h2 {
+            margin: 0;
+        }
+
+        .order-tools {
+            display: flex;
+            align-items: center;
+            gap: 7px;
+        }
+
+        .tool-icon {
+            width: 36px;
+            height: 36px;
+            min-width: 36px;
+            padding: 0;
+            border: none;
+            border-radius: 9px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 19px;
+            cursor: pointer;
+            transition:
+                transform .15s ease,
+                opacity .15s ease;
+        }
+
+        .tool-icon:active {
+            transform: scale(.88);
+        }
+
+        .tool-icon:hover {
+            opacity: .85;
+        }
+
+        .location-icon {
+            background: #4285F4;
+            color: white;
+        }
+
+        .qr-icon {
+            background: #222;
+            color: white;
+        }
+
+        .location-status {
+            margin-top: -5px;
+            margin-bottom: 12px;
+            font-size: 13px;
+            min-height: 18px;
+        }
+
+        /* =========================================
+           SİPARİŞ DETAY QR BUTONU
+        ========================================= */
+
+        .qr-summary-button {
+            background: #222;
+        }
+
+        .qr-summary-button:active {
+            transform: scale(.98);
+        }
+
+        /* =========================================
+           KONUM SAYFASI
+        ========================================= */
+
+        #locationPage {
+            min-height: 100vh;
+            background: #f5f5f5;
+        }
+
+        .location-page-header {
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 18px 55px 18px 20px;
+            background: white;
+            border-radius: 18px;
+            margin-bottom: 18px;
+            box-shadow: 0 5px 20px rgba(0,0,0,.08);
+        }
+
+        .location-page-header h2 {
+            margin: 0;
+            font-size: 21px;
+            text-align: center;
+        }
+
+        .close-location-page {
+            position: absolute;
+            right: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 38px;
+            height: 38px;
+            border: none;
+            border-radius: 50%;
+            background: #eee;
+            font-size: 27px;
+            line-height: 1;
+            cursor: pointer;
+        }
+
+        .close-location-page:active {
+            transform:
+                translateY(-50%)
+                scale(.90);
+        }
+
+        .location-card {
+            background: white;
+            border-radius: 18px;
+            padding: 22px;
+            box-shadow:
+                0 5px 20px rgba(0,0,0,.08);
+            text-align: center;
+        }
+
+        .location-address-title {
+            font-size: 17px;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+
+        .location-page-address {
+            padding: 13px;
+            background: #f7f7f7;
+            border-radius: 10px;
+            font-size: 14px;
+            line-height: 1.5;
+            word-break: break-word;
+        }
+
+        .qr-big-container {
+            margin-top: 24px;
+        }
+
+        .qr-title {
+            font-size: 19px;
+            font-weight: bold;
+        }
+
+        .qr-big-container p {
+            margin-top: 8px;
+        }
+
+        .qr-big-container img {
+            display: block;
+            width: 280px;
+            height: 280px;
+            max-width: 100%;
+            margin: 15px auto;
+            padding: 10px;
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 12px;
+            object-fit: contain;
+        }
+
+        .maps-button {
+            display: block;
+            width: 100%;
+            background: #34A853;
+            color: white;
+            text-decoration: none;
+            text-align: center;
+        }
+
+        .maps-button:active {
+            transform: scale(.98);
+        }
+
+        .back-order-button {
+            width: 100%;
+            background: #555;
+            color: white;
+        }
+
+        /* =========================================
+           YORUM + BİLDİRİM BUTONLARI
+           MEVCUT TASARIMI BOZMADAN
+        ========================================= */
+
+        .review-header {
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .review-header h1 {
+            margin: 0;
+            padding-right: 90px;
+            padding-left: 90px;
+        }
+
+        .header-tools {
+            position: absolute;
+            right: 0;
+            top: 50%;
+
+            transform:
+                translateY(-50%);
+
+            display: flex;
+            align-items: center;
+            gap: 7px;
+        }
+
+        .review-button,
+        .notification-button {
+            position: relative;
+
+            width: 38px;
+            height: 38px;
+
+            border: none;
+            border-radius: 9px;
+
+            color: white;
+
+            font-size: 19px;
+
+            display: flex;
+            align-items: center;
+            justify-content: center;
+
+            cursor: pointer;
+
+            transition:
+                transform .15s ease,
+                opacity .15s ease;
+        }
+
+        .review-button {
+            background: #e63946;
+        }
+
+        .notification-button {
+            background: #222;
+        }
+
+        .review-button:hover,
+        .notification-button:hover {
+            opacity: .85;
+        }
+
+        .review-button:active,
+        .notification-button:active {
+            transform: scale(.88);
+        }
+
+        .review-count,
+        .notification-count {
+            position: absolute;
+
+            top: -7px;
+            right: -7px;
+
+            min-width: 19px;
+            height: 19px;
+
+            padding: 0 4px;
+
+            border-radius: 50%;
+
+            color: white;
+
+            font-size: 11px;
+            font-weight: bold;
+
+            display: flex;
+            align-items: center;
+            justify-content: center;
+
+            border: 2px solid white;
+        }
+
+        .review-count {
+            background: #222;
+        }
+
+        .notification-count {
+            background: #e63946;
+        }
+
+        /* =========================================
+           YORUM SAYFASI
+        ========================================= */
+
+        #reviewPage {
+            min-height: 100vh;
+        }
+
+        .review-page-header {
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+
+            background: white;
+            border-radius: 18px;
+
+            padding: 18px 55px 18px 55px;
+
+            margin-bottom: 18px;
+
+            box-shadow:
+                0 5px 20px rgba(0,0,0,.08);
+        }
+
+        .review-page-header h2 {
+            margin: 0;
+            font-size: 21px;
+            text-align: center;
+        }
+
+        .close-review-page {
+            position: absolute;
+            left: 15px;
+            top: 50%;
+
+            transform:
+                translateY(-50%);
+
+            width: 38px;
+            height: 38px;
+
+            border: none;
+            border-radius: 50%;
+
+            background: #eee;
+
+            font-size: 27px;
+            line-height: 1;
+
+            cursor: pointer;
+        }
+
+        .close-review-page:active {
+            transform:
+                translateY(-50%)
+                scale(.90);
+        }
+
+        /* =========================================
+           YORUM ORTALAMA
+        ========================================= */
+
+        .review-summary {
+            text-align: center;
+
+            background: white;
+
+            border-radius: 18px;
+
+            padding: 22px;
+
+            margin-bottom: 18px;
+
+            box-shadow:
+                0 5px 20px rgba(0,0,0,.08);
+        }
+
+        .review-average {
+            font-size: 42px;
+            font-weight: bold;
+
+            color: #e63946;
+        }
+
+        .review-stars-large {
+            font-size: 27px;
+            color: #f5a623;
+
+            letter-spacing: 2px;
+
+            margin-top: 4px;
+        }
+
+        .review-count-text {
+            margin-top: 7px;
+
+            font-size: 14px;
+            color: #777;
+        }
+
+        /* =========================================
+           YORUM FORMU
+        ========================================= */
+
+        .review-form-card {
+            background: white;
+
+            border-radius: 18px;
+
+            padding: 22px;
+
+            margin-bottom: 18px;
+
+            box-shadow:
+                0 5px 20px rgba(0,0,0,.08);
+        }
+
+        .review-form-card h2 {
+            margin-bottom: 18px;
+        }
+
+        .star-selector {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+
+            gap: 4px;
+
+            margin-top: 8px;
+            margin-bottom: 18px;
+        }
+
+        .star-selector button {
+            width: 43px;
+            height: 43px;
+
+            padding: 0;
+
+            border: none;
+            background: transparent;
+
+            color: #ccc;
+
+            font-size: 31px;
+
+            cursor: pointer;
+
+            transition:
+                transform .12s ease,
+                color .12s ease;
+        }
+
+        .star-selector button:hover {
+            transform: scale(1.1);
+        }
+
+        .star-selector button.selected {
+            color: #f5a623;
+        }
+
+        /* =========================================
+           YORUM LİSTESİ
+        ========================================= */
+
+        .reviews-title {
+            margin-bottom: 12px;
+        }
+
+        .review-item {
+            background: white;
+
+            border-radius: 18px;
+
+            padding: 18px;
+
+            margin-bottom: 12px;
+
+            box-shadow:
+                0 5px 20px rgba(0,0,0,.08);
+        }
+
+        .review-item-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+
+            gap: 10px;
+
+            margin-bottom: 9px;
+        }
+
+        .reviewer-name {
+            font-weight: bold;
+            font-size: 16px;
+        }
+
+        .review-item-stars {
+            color: #f5a623;
+            font-size: 17px;
+
+            letter-spacing: 1px;
+
+            white-space: nowrap;
+        }
+
+        .review-comment {
+            color: #444;
+            font-size: 15px;
+            line-height: 1.5;
+
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+
+        .no-reviews {
+            background: white;
+
+            border-radius: 18px;
+
+            padding: 25px;
+
+            text-align: center;
+
+            color: #777;
+
+            box-shadow:
+                0 5px 20px rgba(0,0,0,.08);
+        }
+
+        .review-storage-info {
+            text-align: center;
+
+            color: #999;
+
+            font-size: 12px;
+
+            line-height: 1.5;
+
+            margin-top: 15px;
+        }
+
+        /* =========================================
+           BİLDİRİM SAYFASI
+        ========================================= */
+
+        #notificationPage {
+            min-height: 100vh;
+        }
+
+        .notification-page-header {
+            position: relative;
+
+            display: flex;
+            align-items: center;
+            justify-content: center;
+
+            background: white;
+
+            border-radius: 18px;
+
+            padding: 18px 55px;
+
+            margin-bottom: 18px;
+
+            box-shadow:
+                0 5px 20px rgba(0,0,0,.08);
+        }
+
+        .notification-page-header h2 {
+            margin: 0;
+
+            font-size: 21px;
+
+            text-align: center;
+        }
+
+        .close-notification-page {
+            position: absolute;
+
+            left: 15px;
+            top: 50%;
+
+            transform:
+                translateY(-50%);
+
+            width: 38px;
+            height: 38px;
+
+            border: none;
+            border-radius: 50%;
+
+            background: #eee;
+
+            font-size: 27px;
+            line-height: 1;
+
+            cursor: pointer;
+        }
+
+        .close-notification-page:active {
+            transform:
+                translateY(-50%)
+                scale(.90);
+        }
+
+        /* =========================================
+           BİLDİRİM BİLGİ KARTI
+        ========================================= */
+
+        .notification-info {
+            background: white;
+
+            border-radius: 18px;
+
+            padding: 18px;
+
+            margin-bottom: 18px;
+
+            box-shadow:
+                0 5px 20px rgba(0,0,0,.08);
+
+            text-align: center;
+
+            color: #777;
+
+            font-size: 14px;
+
+            line-height: 1.5;
+        }
+
+        /* =========================================
+           BİLDİRİM KARTI
+        ========================================= */
+
+        .notification-item {
+            position: relative;
+
+            background: white;
+
+            border-radius: 18px;
+
+            padding: 18px;
+
+            margin-bottom: 12px;
+
+            box-shadow:
+                0 5px 20px rgba(0,0,0,.08);
+
+            border-left: 4px solid #e63946;
+        }
+
+        .notification-item.read {
+            border-left-color: #ccc;
+        }
+
+        .notification-item.unread {
+            background: #fffafa;
+        }
+
+        .notification-item-header {
+            display: flex;
+
+            align-items: flex-start;
+
+            justify-content: space-between;
+
+            gap: 10px;
+
+            margin-bottom: 9px;
+        }
+
+        .notification-title {
+            font-size: 17px;
+
+            font-weight: bold;
+
+            line-height: 1.35;
+        }
+
+        .notification-new {
+            flex-shrink: 0;
+
+            padding: 4px 7px;
+
+            border-radius: 7px;
+
+            background: #e63946;
+
+            color: white;
+
+            font-size: 10px;
+
+            font-weight: bold;
+        }
+
+        .notification-message {
+            color: #444;
+
+            font-size: 15px;
+
+            line-height: 1.5;
+
+            white-space: pre-wrap;
+
+            word-break: break-word;
+        }
+
+        .notification-date {
+            margin-top: 12px;
+
+            color: #999;
+
+            font-size: 12px;
+        }
+
+        .no-notifications {
+            background: white;
+
+            border-radius: 18px;
+
+            padding: 30px 20px;
+
+            text-align: center;
+
+            color: #777;
+
+            box-shadow:
+                0 5px 20px rgba(0,0,0,.08);
+        }
+
+        /* =========================================
+           BİLDİRİM YÜKLENİYOR
+        ========================================= */
+
+        .notification-loading {
+            background: white;
+
+            border-radius: 18px;
+
+            padding: 30px;
+
+            text-align: center;
+
+            color: #777;
+
+            box-shadow:
+                0 5px 20px rgba(0,0,0,.08);
+        }
+
+        #productList .product-icon {
+            font-size: 30px;
+            width: 42px;
+            text-align: center;
+            display: inline-block;
+            margin-right: 8px;
+        }
+
+        .product-main {
+            display: flex;
+            align-items: center;
+        }
+
+        .product-info {
+            min-width: 0;
+        }
+
+        .admin-link {
+            display: block;
+            width: max-content;
+            margin: 12px auto 0;
+            color: #777;
+            font-size: 12px;
+            text-decoration: none;
+        }
+
+        .admin-link:hover {
+            text-decoration: underline;
+        }
+
+        /* =========================================
+           MOBİL
+        ========================================= */
+
+        @media (max-width: 400px) {
+
+            .container {
+                padding: 12px;
+            }
+
+            .card {
+                padding: 18px;
+            }
+
+            .qr-big-container img {
+                width: 240px;
+                height: 240px;
+            }
+
+            .review-item-header {
+                align-items: flex-start;
+                flex-direction: column;
+                gap: 5px;
+            }
+
+            .review-header h1 {
+                padding-right: 80px;
+                padding-left: 20px;
+            }
+
+            .header-tools {
+                gap: 4px;
+            }
+
+            .review-button,
+            .notification-button {
+                width: 35px;
+                height: 35px;
+                min-width: 35px;
+                font-size: 17px;
+            }
+
+        }
+
+    </style>
+
+</head>
+
+<body>
+
+<div class="container">
+
+    <!-- =========================================
+         SİPARİŞ SAYFASI
+    ========================================= -->
+
+    <div id="orderPage">
+
+        <!-- BAŞLIK -->
+
+        <div class="card">
+
+            <div class="review-header">
+
+                <h1>
+                    🌯 Dürümcü
+                </h1>
+
+                <!-- =========================================
+                     YORUM + BİLDİRİM BUTONLARI
+                ========================================= -->
+
+                <div class="header-tools">
+
+                    <!-- BİLDİRİMLER -->
+
+                    <button
+                        type="button"
+                        class="notification-button"
+                        onclick="openNotificationPage()"
+                        title="Bildirimler"
+                        aria-label="Bildirimler"
+                    >
+
+                        🔔
+
+                        <span
+                            id="notificationCount"
+                            class="notification-count"
+                        >
+                            0
+                        </span>
+
+                    </button>
+
+
+                    <!-- YORUMLAR -->
+
+                    <button
+                        type="button"
+                        class="review-button"
+                        onclick="openReviewPage()"
+                        title="Müşteri Yorumları"
+                        aria-label="Müşteri Yorumları"
+                    >
+
+                        💬
+
+                        <span
+                            id="reviewCount"
+                            class="review-count"
+                        >
+                            0
+                        </span>
+
+                    </button>
+
+                </div>
+
+            </div>
+
+            <p class="small">
+                Online Sipariş
+            </p>
+            <a href="admin.html" class="admin-link">⚙️ İşletme Girişi</a>
+
+        </div>
+
+        <!-- =========================================
+             SİPARİŞ
+        ========================================= -->
+
+        <div class="card">
+
+            <h2>
+                Siparişiniz
+            </h2>
+
+            <div id="productList">
+                <!-- Ürünler sunucudaki products.json/API üzerinden yüklenir -->
+            </div>
+
+            <!-- TOPLAM -->
+
+            <div class="total">
+
+                <span>
+                    Toplam
+                </span>
+
+                <span id="totalPrice">
+                    0 TL
+                </span>
+
+            </div>
+
+        </div>
+
+        <!-- =========================================
+             MÜŞTERİ BİLGİLERİ
+        ========================================= -->
+
+        <div class="card">
+
+            <h2>
+                Müşteri Bilgileri
+            </h2>
+
+            <!-- AD -->
+
+            <label>
+                Adınız
+            </label>
+
+            <input
+                type="text"
+                id="customerName"
+                placeholder="Örneğin: Mehmet"
+            >
+
+            <!-- ADRES -->
+
+            <div class="order-title-row">
+
+                <label>
+                    Adresiniz
+                </label>
+
+                <div class="order-tools">
+
+                    <!-- SADECE KONUM BUTONU -->
+
+                    <button
+                        type="button"
+                        class="tool-icon location-icon"
+                        onclick="getLocation()"
+                        title="Konumumu Bul"
+                        aria-label="Konumumu Bul"
+                    >
+                        📍
+                    </button>
+
+                </div>
+
+            </div>
+
+            <textarea
+                id="customerAddress"
+                placeholder="Teslimat adresiniz..."
+            ></textarea>
+
+            <!-- KONUM DURUMU -->
+
+            <div
+                id="locationStatus"
+                class="small location-status"
+            ></div>
+
+            <!-- ÖDEME -->
+
+            <h2>
+                Ödeme Şekli
+            </h2>
+
+            <label class="payment-option">
+
+                <input
+                    type="radio"
+                    name="payment"
+                    value="Kapıda nakit"
+                >
+
+                💵 Kapıda nakit
+
+            </label>
+
+            <label class="payment-option">
+
+                <input
+                    type="radio"
+                    name="payment"
+                    value="Kapıda kredi kartı"
+                >
+
+                💳 Kapıda kredi kartı
+
+            </label>
+
+            <!-- NOT -->
+
+            <h2>
+                Sipariş Notu
+            </h2>
+
+            <textarea
+                id="orderNote"
+                placeholder="Örneğin: Soğan olmasın..."
+            ></textarea>
+
+            <!-- SİPARİŞİ OLUŞTUR -->
+
+            <button
+                type="button"
+                class="main-button order-button"
+                onclick="createOrder()"
+            >
+                Siparişi Oluştur
+            </button>
+
+        </div>
+
+    </div>
+
+    <!-- =========================================
+         ÖZET / SİPARİŞ DETAY SAYFASI
+    ========================================= -->
+
+    <div
+        id="summaryPage"
+        class="hidden"
+    >
+
+        <div class="card">
+
+            <div class="success">
+                🧾
+            </div>
+
+            <h1>
+                Sipariş Özeti
+            </h1>
+
+            <div id="summaryContent"></div>
+
+            <div class="summary-total">
+
+                <span>
+                    Toplam
+                </span>
+
+                <span id="summaryTotal">
+                    0 TL
+                </span>
+
+            </div>
+
+        </div>
+
+        <!-- =========================================
+             TESLİMAT BİLGİLERİ
+        ========================================= -->
+
+        <div class="card">
+
+            <h2>
+                Teslimat Bilgileri
+            </h2>
+
+            <div class="summary-info">
+
+                <p>
+
+                    <strong>Ad:</strong>
+
+                    <span id="summaryName"></span>
+
+                </p>
+
+                <p>
+                    <strong>Adres:</strong>
+                </p>
+
+                <p id="summaryAddress"></p>
+
+                <!-- KONUM QR BUTONU BURADA -->
+
+                <button
+                    type="button"
+                    class="main-button qr-summary-button"
+                    onclick="openLocationPage()"
+                >
+                    📱 Konum QR Kodunu Göster
+                </button>
+
+            </div>
+
+        </div>
+
+        <!-- =========================================
+             ÖDEME VE NOT
+        ========================================= -->
+
+        <div class="card">
+
+            <h2>
+                Ödeme ve Not
+            </h2>
+
+            <div class="summary-info">
+
+                <p>
+
+                    <strong>Ödeme:</strong>
+
+                    <span id="summaryPayment"></span>
+
+                </p>
+
+                <p>
+                    <strong>Not:</strong>
+                </p>
+
+                <p id="summaryNote"></p>
+
+            </div>
+
+        </div>
+
+        <!-- =========================================
+             SİPARİŞ İŞLEMLERİ
+        ========================================= -->
+
+        <div class="card">
+
+            <button
+                type="button"
+                class="main-button whatsapp-button"
+                onclick="sendToWhatsApp()"
+            >
+                ✓ Onayla ve WhatsApp'tan Gönder
+            </button>
+
+            <button
+                type="button"
+                class="main-button back-button"
+                onclick="goBack()"
+            >
+                ← Siparişi Düzenle
+            </button>
+
+            <button
+                type="button"
+                class="main-button cancel-button"
+                onclick="cancelOrder()"
+            >
+                ✕ Siparişi İptal Et
+            </button>
+
+        </div>
+
+    </div>
+
+    <!-- =========================================
+         KONUM / QR SAYFASI
+    ========================================= -->
+
+    <div
+        id="locationPage"
+        class="hidden"
+    >
+
+        <!-- SAYFA BAŞLIĞI -->
+
+        <div class="location-page-header">
+
+            <h2>
+                📍 Konum Bilgisi
+            </h2>
+
+            <!-- X -->
+
+            <button
+                type="button"
+                class="close-location-page"
+                onclick="closeLocationPage()"
+                aria-label="Kapat"
+            >
+                ×
+            </button>
+
+        </div>
+
+        <!-- KONUM KARTI -->
+
+        <div class="location-card">
+
+            <div class="location-address-title">
+                📍 Teslimat Konumu
+            </div>
+
+            <div
+                id="locationPageAddress"
+                class="location-page-address"
+            >
+                Konum henüz bulunmadı.
+            </div>
+
+            <!-- QR -->
+
+            <div class="qr-big-container">
+
+                <div class="qr-title">
+                    📱 QR Kod
+                </div>
+
+                <p class="small">
+                    QR kodu telefon kamerasıyla okutun.
+                </p>
+
+                <img
+                    id="locationQRPage"
+                    src=""
+                    alt="Google Maps Konum QR Kodu"
+                >
+
+            </div>
+
+            <!-- GOOGLE MAPS -->
+
+            <a
+                id="locationPageMapsButton"
+                href="#"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="main-button maps-button"
+            >
+                🗺️ Google Maps'te Aç
+            </a>
+
+            <!-- GERİ DÖN -->
+
+            <button
+                type="button"
+                class="main-button back-order-button"
+                onclick="closeLocationPage()"
+            >
+                ← Siparişe Geri Dön
+            </button>
+
+        </div>
+
+    </div>
+
+
+    <!-- =========================================
+         YORUMLAR SAYFASI
+    ========================================= -->
+
+    <div
+        id="reviewPage"
+        class="hidden"
+    >
+
+        <!-- SAYFA BAŞLIĞI -->
+
+        <div class="review-page-header">
+
+            <h2>
+                💬 Müşteri Yorumları
+            </h2>
+
+            <button
+                type="button"
+                class="close-review-page"
+                onclick="closeReviewPage()"
+                aria-label="Kapat"
+            >
+                ×
+            </button>
+
+        </div>
+
+
+        <!-- =========================================
+             ORTALAMA PUAN
+        ========================================= -->
+
+        <div class="review-summary">
+
+            <div
+                id="reviewAverage"
+                class="review-average"
+            >
+                0.0
+            </div>
+
+            <div
+                id="reviewAverageStars"
+                class="review-stars-large"
+            >
+                ☆☆☆☆☆
+            </div>
+
+            <div
+                id="reviewCountText"
+                class="review-count-text"
+            >
+                Henüz yorum yok
+            </div>
+
+        </div>
+
+
+        <!-- =========================================
+             YORUM YAZ
+        ========================================= -->
+
+        <div class="review-form-card">
+
+            <h2>
+                Yorum Yap
+            </h2>
+
+
+            <!-- İSİM -->
+
+            <label>
+                Adınız
+            </label>
+
+            <input
+                type="text"
+                id="reviewName"
+                maxlength="50"
+                placeholder="Örneğin: Mehmet"
+            >
+
+
+            <!-- PUAN -->
+
+            <label>
+                Puanınız
+            </label>
+
+            <div
+                id="starSelector"
+                class="star-selector"
+            >
+
+                <button
+                    type="button"
+                    data-rating="1"
+                    onclick="selectReviewRating(1)"
+                >
+                    ★
+                </button>
+
+                <button
+                    type="button"
+                    data-rating="2"
+                    onclick="selectReviewRating(2)"
+                >
+                    ★
+                </button>
+
+                <button
+                    type="button"
+                    data-rating="3"
+                    onclick="selectReviewRating(3)"
+                >
+                    ★
+                </button>
+
+                <button
+                    type="button"
+                    data-rating="4"
+                    onclick="selectReviewRating(4)"
+                >
+                    ★
+                </button>
+
+                <button
+                    type="button"
+                    data-rating="5"
+                    onclick="selectReviewRating(5)"
+                >
+                    ★
+                </button>
+
+            </div>
+
+
+            <!-- YORUM -->
+
+            <label>
+                Yorumunuz
+            </label>
+
+            <textarea
+                id="reviewComment"
+                maxlength="500"
+                placeholder="Yemeğimiz ve hizmetimiz hakkında düşünceleriniz..."
+            ></textarea>
+
+
+            <!-- GÖNDER -->
+
+            <button
+                type="button"
+                class="main-button order-button"
+                onclick="submitReview()"
+            >
+                ⭐ Yorumu Gönder
+            </button>
+
+        </div>
+
+
+        <!-- =========================================
+             YORUMLAR
+        ========================================= -->
+
+        <div class="card">
+
+            <h2 class="reviews-title">
+                Son Yorumlar
+            </h2>
+
+            <div
+                id="reviewList"
+            ></div>
+
+            <div class="review-storage-info">
+
+                Şimdilik yorumlar bu cihazın
+                tarayıcısında saklanmaktadır.
+
+            </div>
+
+        </div>
+
+
+        <!-- GERİ DÖN -->
+
+        <button
+            type="button"
+            class="main-button back-button"
+            onclick="closeReviewPage()"
+        >
+            ← Sipariş Sayfasına Dön
+        </button>
+
+    </div>
+
+
+    <!-- =========================================
+         BİLDİRİMLER SAYFASI
+    ========================================= -->
+
+    <div
+        id="notificationPage"
+        class="hidden"
+    >
+
+        <!-- SAYFA BAŞLIĞI -->
+
+        <div class="notification-page-header">
+
+            <h2>
+                🔔 Bildirimler
+            </h2>
+
+            <button
+                type="button"
+                class="close-notification-page"
+                onclick="closeNotificationPage()"
+                aria-label="Kapat"
+            >
+                ×
+            </button>
+
+        </div>
+
+
+        <!-- =========================================
+             BİLDİRİM AÇIKLAMASI
+        ========================================= -->
+
+        <div class="notification-info">
+
+            📢 Buradaki kampanya ve duyurular
+            tüm müşterilerimize gösterilir.
+
+        </div>
+
+
+        <!-- =========================================
+             BİLDİRİM LİSTESİ
+        ========================================= -->
+
+        <div
+            id="notificationList"
+        >
+
+            <div class="notification-loading">
+                🔔 Bildirimler yükleniyor...
+            </div>
+
+        </div>
+
+
+        <!-- =========================================
+             GERİ DÖN
+        ========================================= -->
+
+        <button
+            type="button"
+            class="main-button back-button"
+            onclick="closeNotificationPage()"
+        >
+            ← Sipariş Sayfasına Dön
+        </button>
+
+    </div>
+
+</div>
+
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="supabase-config.js"></script>
+<script>
+    const supabaseClient = window.supabase.createClient(
+        window.SUPABASE_CONFIG.url,
+        window.SUPABASE_CONFIG.key
+    );
+</script>
+
+<script>
+
+    /* =========================================
+       AYARLAR
+    ========================================= */
+
+    let products = [];
+
+    const STORAGE_KEY =
+        "durumcu_order";
+
+
+    /*
+     * YORUMLAR İÇİN AYRI LOCAL STORAGE
+     */
+
+    const REVIEW_STORAGE_KEY =
+        "durumcu_reviews";
+
+
+    /*
+     * OKUNAN BİLDİRİMLER
+     */
+
+    const NOTIFICATION_READ_STORAGE_KEY =
+        "durumcu_read_notifications";
+
+
+    /* =========================================
+       ORTAK BİLDİRİMLER
+       
+       BURADAN BİLDİRİM EKLEYEBİLİRSİN
+       
+       active:
+       true  = göster
+       false = gizle
+       
+       startDate / endDate:
+       Bildirimin gösterileceği tarih aralığı.
+       
+       Boş bırakılırsa tarih sınırı olmaz.
+    ========================================= */
+
+    const NOTIFICATIONS = [
+
+        {
+            id: 1,
+
+            title:
+                "Bugüne Özel %15 İndirim 🎁",
+
+            message:
+                "Bugün vereceğiniz tüm dürüm siparişlerinde %15 indirim fırsatı! Kampanyayı kaçırmayın.",
+
+            active: true,
+
+            startDate:
+                "2026-09-23",
+
+            endDate:
+                "2026-09-23"
+        },
+
+
+        {
+            id: 2,
+
+            title:
+                "Yeni Kampanya 🌯",
+
+            message:
+                "2 dürüm alana 1 ayran bizden! Kampanyamızdan yararlanmak için siparişinizi hemen oluşturabilirsiniz.",
+
+            active: true,
+
+            startDate:
+                "",
+
+            endDate:
+                ""
+        },
+
+
+        {
+            id: 3,
+
+            title:
+                "Duyuru 📢",
+
+            message:
+                "Siparişlerinizi daha hızlı hazırlayabilmemiz için adres bilgilerinizi eksiksiz girmenizi rica ederiz.",
+
+            active: true,
+
+            startDate:
+                "",
+
+            endDate:
+                ""
+        }
+
+    ];
+
+
+    /* =========================================
+       SİPARİŞ NESNESİ
+    ========================================= */
+
+    let order = {
+        items: [],
+        name: "",
+        address: "",
+        payment: "",
+        note: "",
+        latitude: null,
+        longitude: null,
+        googleMapsUrl: ""
+    };
+
+
+    /* =========================================
+       YORUM PUANI
+    ========================================= */
+
+    let selectedReviewRating = 0;
+
+
+    /* =========================================
+       LOCAL STORAGE
+    ========================================= */
+
+    function saveOrder() {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(order));
+    }
+
+    function loadOrder() {
+        const savedOrder = localStorage.getItem(STORAGE_KEY);
+        if (!savedOrder) return;
+
+        try {
+            const data = JSON.parse(savedOrder);
+            order = {
+                items: Array.isArray(data.items) ? data.items : [],
+                name: data.name || "",
+                address: data.address || "",
+                payment: data.payment || "",
+                note: data.note || "",
+                latitude: data.latitude || null,
+                longitude: data.longitude || null,
+                googleMapsUrl: data.googleMapsUrl || ""
+            };
+
+            document.getElementById("customerName").value = order.name;
+            document.getElementById("customerAddress").value = order.address;
+            document.getElementById("orderNote").value = order.note;
+
+            document.querySelectorAll('input[name="payment"]').forEach(input => {
+                input.checked = input.value === order.payment;
+            });
+
+            calculateTotal();
+
+            if (order.latitude && order.longitude) {
+                document.getElementById("locationStatus").textContent = "📍 Kayıtlı konum hazır.";
+            }
+        } catch (error) {
+            console.error("Kayıtlı sipariş okunamadı:", error);
+            localStorage.removeItem(STORAGE_KEY);
+        }
+    }
+
+    async function loadProducts() {
+        try {
+            const { data, error } = await supabaseClient
+                .from("products")
+                .select("id,name,icon,price,active")
+                .eq("active", true)
+                .order("created_at", { ascending: true });
+
+            if (error) throw error;
+
+            products = Array.isArray(data) ? data : [];
+            renderProducts();
+            calculateTotal();
+        } catch (error) {
+            console.error("Ürünler yüklenemedi:", error);
+            document.getElementById("productList").innerHTML =
+                '<p class="small">Ürünler yüklenemedi. Lütfen sayfayı yenileyin.</p>';
+        }
+    }
+
+    function renderProducts() {
+        const list = document.getElementById("productList");
+        list.innerHTML = "";
+
+        products.filter(p => p.active !== false).forEach(product => {
+            const row = document.createElement("div");
+            row.className = "product";
+
+            const left = document.createElement("div");
+            left.className = "product-main";
+
+            const icon = document.createElement("span");
+            icon.className = "product-icon";
+            icon.textContent = product.icon || "🍽️";
+
+            const info = document.createElement("div");
+            info.className = "product-info";
+
+            const name = document.createElement("div");
+            name.className = "product-name";
+            name.textContent = product.name;
+
+            const price = document.createElement("div");
+            price.className = "price";
+            price.textContent = `${Number(product.price).toLocaleString("tr-TR")} TL`;
+
+            info.appendChild(name);
+            info.appendChild(price);
+            left.appendChild(icon);
+            left.appendChild(info);
+
+            const quantity = document.createElement("div");
+            quantity.className = "quantity";
+
+            const minus = document.createElement("button");
+            minus.type = "button";
+            minus.textContent = "−";
+            minus.onclick = () => changeQuantity(product.id, -1);
+
+            const count = document.createElement("span");
+            count.id = `quantity-${product.id}`;
+            count.textContent = getItemQuantity(product.id);
+
+            const plus = document.createElement("button");
+            plus.type = "button";
+            plus.textContent = "+";
+            plus.onclick = () => changeQuantity(product.id, 1);
+
+            quantity.appendChild(minus);
+            quantity.appendChild(count);
+            quantity.appendChild(plus);
+
+            row.appendChild(left);
+            row.appendChild(quantity);
+            list.appendChild(row);
+        });
+
+        // Removed/deleted products no longer remain in the active cart.
+        order.items = order.items.filter(item =>
+            products.some(p => p.id === item.productId && p.active !== false)
+        );
+        saveOrder();
+    }
+
+    function getItemQuantity(productId) {
+        const item = order.items.find(x => x.productId === productId);
+        return item ? item.quantity : 0;
+    }
+
+    /* =========================================
+       ADET DEĞİŞTİR
+    ========================================= */
+
+    function changeQuantity(productId, amount) {
+        const product = products.find(p => p.id === productId);
+        if (!product) return;
+
+        let item = order.items.find(x => x.productId === productId);
+
+        if (!item) {
+            item = { productId, quantity: 0 };
+            order.items.push(item);
+        }
+
+        item.quantity += amount;
+
+        if (item.quantity <= 0) {
+            order.items = order.items.filter(x => x.productId !== productId);
+            item.quantity = 0;
+        }
+
+        const quantityElement = document.getElementById(`quantity-${productId}`);
+        if (quantityElement) quantityElement.textContent = item.quantity;
+
+        calculateTotal();
+        saveOrder();
+    }
+
+    function calculateTotal() {
+        const total = order.items.reduce((sum, item) => {
+            const product = products.find(p => p.id === item.productId);
+            return sum + (product ? Number(product.price) * item.quantity : 0);
+        }, 0);
+
+        document.getElementById("totalPrice").textContent =
+            `${total.toLocaleString("tr-TR")} TL`;
+
+        return total;
+    }
+
+    /* =========================================
+       GOOGLE MAPS URL
+    ========================================= */
+
+    function createGoogleMapsUrl(
+        latitude,
+        longitude
+    ) {
+
+        return (
+
+            "https://www.google.com/maps/search/?api=1" +
+
+            "&query=" +
+
+            encodeURIComponent(
+                latitude + "," + longitude
+            )
+
+        );
+
+    }
+
+
+    /* =========================================
+       KONUMU BUL
+    ========================================= */
+
+    async function getLocation() {
+
+        const status =
+            document.getElementById(
+                "locationStatus"
+            );
+
+        const addressInput =
+            document.getElementById(
+                "customerAddress"
+            );
+
+        if (!navigator.geolocation) {
+
+            status.textContent =
+                "❌ Tarayıcınız konum özelliğini desteklemiyor.";
+
+            return;
+        }
+
+        status.textContent =
+            "📍 Konumunuz bulunuyor...";
+
+        navigator.geolocation.getCurrentPosition(
+
+            async function(position) {
+
+                const latitude =
+                    position.coords.latitude;
+
+                const longitude =
+                    position.coords.longitude;
+
+                console.log(
+                    "GPS koordinatları:",
+                    {
+                        latitude,
+                        longitude
+                    }
+                );
+
+                status.textContent =
+                    "📍 Konum bulundu. Açık adres alınıyor...";
+
+
+                /*
+                 * GOOGLE MAPS LİNKİNİ ÖNCEDEN OLUŞTUR
+                 */
+
+                const googleMapsUrl =
+                    createGoogleMapsUrl(
+                        latitude,
+                        longitude
+                    );
+
+                order.latitude =
+                    latitude;
+
+                order.longitude =
+                    longitude;
+
+                order.googleMapsUrl =
+                    googleMapsUrl;
+
+                saveOrder();
+
+
+                /*
+                 * NOMINATIM ADRES SORGUSU
+                 */
+
+                try {
+
+                    const apiUrl =
+                        "https://nominatim.openstreetmap.org/reverse" +
+                        "?format=jsonv2" +
+                        "&lat=" +
+                        encodeURIComponent(latitude) +
+                        "&lon=" +
+                        encodeURIComponent(longitude) +
+                        "&zoom=18" +
+                        "&addressdetails=1" +
+                        "&accept-language=tr";
+
+                    console.log(
+                        "Adres sorgusu:",
+                        apiUrl
+                    );
+
+                    const response =
+                        await fetch(apiUrl, {
+
+                            method: "GET",
+
+                            headers: {
+
+                                "Accept":
+                                    "application/json"
+
+                            }
+
+                        });
+
+                    console.log(
+                        "Adres servisi HTTP:",
+                        response.status
+                    );
+
+                    if (!response.ok) {
+
+                        throw new Error(
+                            "Adres servisi HTTP " +
+                            response.status +
+                            " hatası verdi."
+                        );
+
+                    }
+
+                    const data =
+                        await response.json();
+
+                    console.log(
+                        "Adres servisi cevabı:",
+                        data
+                    );
+
+                    if (
+                        !data ||
+                        !data.address
+                    ) {
+
+                        throw new Error(
+                            "Bu koordinat için adres bilgisi bulunamadı."
+                        );
+
+                    }
+
+                    const a =
+                        data.address;
+
+
+                    /*
+                     * MAHALLE
+                     */
+
+                    const mahalle =
+
+                        a.neighbourhood ||
+
+                        a.quarter ||
+
+                        a.suburb ||
+
+                        a.city_district ||
+
+                        a.village ||
+
+                        "";
+
+
+                    /*
+                     * CADDE / SOKAK
+                     */
+
+                    const cadde =
+
+                        a.road ||
+
+                        a.street ||
+
+                        "";
+
+
+                    /*
+                     * BİNA NO
+                     */
+
+                    const binaNo =
+
+                        a.house_number ||
+
+                        "";
+
+
+                    /*
+                     * İLÇE
+                     */
+
+                    const ilce =
+
+                        a.town ||
+
+                        a.municipality ||
+
+                        a.county ||
+
+                        a.district ||
+
+                        "";
+
+
+                    /*
+                     * İL
+                     */
+
+                    const il =
+
+                        a.city ||
+
+                        a.province ||
+
+                        a.state ||
+
+                        "";
+
+
+                    /*
+                     * POSTA KODU
+                     */
+
+                    const postaKodu =
+                        a.postcode || "";
+
+
+                    /*
+                     * ADRESİ OLUŞTUR
+                     */
+
+                    const addressParts = [];
+
+
+                    if (mahalle) {
+
+                        addressParts.push(
+                            mahalle + " Mah."
+                        );
+
+                    }
+
+
+                    if (cadde) {
+
+                        addressParts.push(
+                            cadde
+                        );
+
+                    }
+
+
+                    if (binaNo) {
+
+                        addressParts.push(
+                            "No:" + binaNo
+                        );
+
+                    }
+
+
+                    let cityPart = "";
+
+
+                    if (ilce) {
+
+                        cityPart =
+                            ilce;
+
+                    }
+
+
+                    if (il) {
+
+                        if (cityPart) {
+
+                            cityPart +=
+                                "/";
+
+                        }
+
+                        cityPart +=
+                            il;
+
+                    }
+
+
+                    if (cityPart) {
+
+                        addressParts.push(
+                            cityPart
+                        );
+
+                    }
+
+
+                    if (postaKodu) {
+
+                        addressParts.push(
+                            postaKodu
+                        );
+
+                    }
+
+
+                    let formattedAddress =
+                        addressParts.join(" ");
+
+
+                    /*
+                     * EĞER PARÇALI ADRES YETERLİ DEĞİLSE
+                     */
+
+                    if (
+                        formattedAddress.length < 10
+                    ) {
+
+                        formattedAddress =
+                            data.display_name || "";
+
+                    }
+
+
+                    /*
+                     * HİÇ ADRES YOKSA KOORDİNAT KULLAN
+                     */
+
+                    if (
+                        !formattedAddress
+                    ) {
+
+                        formattedAddress =
+                            "Konum: " +
+                            latitude +
+                            ", " +
+                            longitude;
+
+                    }
+
+
+                    /*
+                     * ADRES ALANINA YAZ
+                     */
+
+                    addressInput.value =
+                        formattedAddress;
+
+
+                    /*
+                     * SİPARİŞE KAYDET
+                     */
+
+                    order.address =
+                        formattedAddress;
+
+                    order.latitude =
+                        latitude;
+
+                    order.longitude =
+                        longitude;
+
+                    order.googleMapsUrl =
+                        googleMapsUrl;
+
+                    saveOrder();
+
+
+                    /*
+                     * BAŞARILI
+                     */
+
+                    status.textContent =
+                        "✅ Konum ve açık adres başarıyla bulundu.";
+
+
+                    /*
+                     * QR SAYFASI AÇILIRKEN HAZIR OLSUN
+                     */
+
+                    document.getElementById(
+                        "locationPageAddress"
+                    ).textContent =
+                        formattedAddress;
+
+
+                    document.getElementById(
+                        "locationPageMapsButton"
+                    ).href =
+                        googleMapsUrl;
+
+
+                    document.getElementById(
+                        "locationQRPage"
+                    ).src =
+
+                        "https://api.qrserver.com/v1/create-qr-code/" +
+                        "?size=600x600" +
+                        "&data=" +
+                        encodeURIComponent(
+                            googleMapsUrl
+                        );
+
+
+                } catch (error) {
+
+                    /*
+                     * ADRES SERVİSİ BAŞARISIZ
+                     */
+
+                    console.error(
+                        "Açık adres alınamadı:",
+                        error
+                    );
+
+
+                    const fallbackAddress =
+
+                        "Konum: " +
+                        latitude +
+                        ", " +
+                        longitude;
+
+
+                    /*
+                     * KOORDİNAT ADRES ALANINA YAZ
+                     */
+
+                    addressInput.value =
+                        fallbackAddress;
+
+
+                    /*
+                     * SİPARİŞE KAYDET
+                     */
+
+                    order.address =
+                        fallbackAddress;
+
+                    order.latitude =
+                        latitude;
+
+                    order.longitude =
+                        longitude;
+
+                    order.googleMapsUrl =
+                        googleMapsUrl;
+
+                    saveOrder();
+
+
+                    /*
+                     * QR SAYFASINI DA HAZIRLA
+                     */
+
+                    document.getElementById(
+                        "locationPageAddress"
+                    ).textContent =
+                        fallbackAddress;
+
+
+                    document.getElementById(
+                        "locationPageMapsButton"
+                    ).href =
+                        googleMapsUrl;
+
+
+                    document.getElementById(
+                        "locationQRPage"
+                    ).src =
+
+                        "https://api.qrserver.com/v1/create-qr-code/" +
+                        "?size=600x600" +
+                        "&data=" +
+                        encodeURIComponent(
+                            googleMapsUrl
+                        );
+
+
+                    /*
+                     * KULLANICIYA NET MESAJ
+                     */
+
+                    status.textContent =
+                        "⚠️ Konum bulundu ancak açık adres alınamadı. Google Maps konumu hazır.";
+
+                }
+
+            },
+
+
+            function(error) {
+
+                console.error(
+                    "GPS hatası:",
+                    error
+                );
+
+                switch (error.code) {
+
+                    case error.PERMISSION_DENIED:
+
+                        status.textContent =
+                            "❌ Konum izni verilmedi. Tarayıcı ayarlarından konum iznini açın.";
+
+                        break;
+
+
+                    case error.POSITION_UNAVAILABLE:
+
+                        status.textContent =
+                            "❌ Konum bilgisi alınamadı. GPS/Wi-Fi konumunuzu kontrol edin.";
+
+                        break;
+
+
+                    case error.TIMEOUT:
+
+                        status.textContent =
+                            "❌ Konum alma işlemi zaman aşımına uğradı. Tekrar deneyin.";
+
+                        break;
+
+
+                    default:
+
+                        status.textContent =
+                            "❌ Konum alınırken bilinmeyen bir hata oluştu.";
+
+                }
+
+            },
+
+            {
+
+                enableHighAccuracy: true,
+
+                timeout: 30000,
+
+                maximumAge: 0
+
+            }
+
+        );
+
+    }
+
+
+    /* =========================================
+       QR / KONUM SAYFASINI AÇ
+    ========================================= */
+
+    function openLocationPage() {
+
+        /*
+           KONUM ALINMAMIŞSA
+        */
+
+        if (
+            !order.latitude ||
+            !order.longitude
+        ) {
+
+            alert(
+                "Önce 📍 konum ikonuna basarak konumunuzu bulun."
+            );
+
+            return;
+
+        }
+
+
+        const page =
+            document.getElementById(
+                "locationPage"
+            );
+
+        const address =
+            document.getElementById(
+                "locationPageAddress"
+            );
+
+        const qr =
+            document.getElementById(
+                "locationQRPage"
+            );
+
+        const mapsButton =
+            document.getElementById(
+                "locationPageMapsButton"
+            );
+
+
+        /*
+           GOOGLE MAPS URL
+        */
+
+        const googleMapsUrl =
+
+            order.googleMapsUrl ||
+
+            createGoogleMapsUrl(
+                order.latitude,
+                order.longitude
+            );
+
+
+        /*
+           ADRESİ GÖSTER
+        */
+
+        address.textContent =
+
+            order.address ||
+
+            "Konum adresi bulunamadı.";
+
+
+        /*
+           GOOGLE MAPS BUTONU
+        */
+
+        mapsButton.href =
+            googleMapsUrl;
+
+
+        /*
+           QR KODU
+        */
+
+        qr.src =
+
+            "https://api.qrserver.com/v1/create-qr-code/" +
+
+            "?size=600x600" +
+
+            "&data=" +
+
+            encodeURIComponent(
+                googleMapsUrl
+            );
+
+
+        /*
+           DİĞER SAYFALARI GİZLE
+        */
+
+        document.getElementById(
+            "orderPage"
+        ).classList.add(
+            "hidden"
+        );
+
+        document.getElementById(
+            "summaryPage"
+        ).classList.add(
+            "hidden"
+        );
+
+        document.getElementById(
+            "reviewPage"
+        ).classList.add(
+            "hidden"
+        );
+
+        document.getElementById(
+            "notificationPage"
+        ).classList.add(
+            "hidden"
+        );
+
+
+        /*
+           KONUM SAYFASINI AÇ
+        */
+
+        page.classList.remove(
+            "hidden"
+        );
+
+
+        window.scrollTo(
+            0,
+            0
+        );
+
+    }
+
+
+    /* =========================================
+       KONUM SAYFASINI KAPAT
+    ========================================= */
+
+    function closeLocationPage() {
+
+        document.getElementById(
+            "locationPage"
+        ).classList.add(
+            "hidden"
+        );
+
+
+        /*
+           ÖNCEKİ SAYFA SİPARİŞ ÖZETİYSE
+           ÖZETİ AÇ
+        */
+
+        document.getElementById(
+            "summaryPage"
+        ).classList.remove(
+            "hidden"
+        );
+
+
+        window.scrollTo(
+            0,
+            0
+        );
+
+    }
+
+
+    /* =========================================
+       SİPARİŞ OLUŞTUR
+    ========================================= */
+
+    function createOrder() {
+        const name = document.getElementById("customerName").value.trim();
+        const address = document.getElementById("customerAddress").value.trim();
+        const note = document.getElementById("orderNote").value.trim();
+        const payment = document.querySelector('input[name="payment"]:checked');
+
+        if (!name) return alert("Lütfen adınızı girin.");
+        if (!address) return alert("Lütfen adresinizi girin.");
+        if (order.items.length === 0) return alert("Lütfen ürün seçin.");
+        if (!payment) return alert("Lütfen ödeme şeklini seçin.");
+
+        order.name = name;
+        order.address = address;
+        order.payment = payment.value;
+        order.note = note;
+        saveOrder();
+
+        const total = calculateTotal();
+        let html = "";
+
+        order.items.forEach(item => {
+            const product = products.find(p => p.id === item.productId);
+            if (!product) return;
+
+            const lineTotal = Number(product.price) * item.quantity;
+            html += `
+                <div class="summary-row">
+                    <span>${escapeHtml(product.icon || "🍽️")} ${escapeHtml(product.name)} × ${item.quantity}</span>
+                    <span>${lineTotal.toLocaleString("tr-TR")} TL</span>
+                </div>
+            `;
+        });
+
+        document.getElementById("summaryContent").innerHTML = html;
+        document.getElementById("summaryTotal").textContent =
+            `${total.toLocaleString("tr-TR")} TL`;
+        document.getElementById("summaryName").textContent = order.name;
+        document.getElementById("summaryAddress").textContent = order.address;
+        document.getElementById("summaryPayment").textContent = order.payment;
+        document.getElementById("summaryNote").textContent = order.note || "Not belirtilmedi.";
+
+        document.getElementById("orderPage").classList.add("hidden");
+        document.getElementById("summaryPage").classList.remove("hidden");
+        window.scrollTo(0, 0);
+    }
+
+    function escapeHtml(value) {
+        const div = document.createElement("div");
+        div.textContent = value ?? "";
+        return div.innerHTML;
+    }
+
+    /* =========================================
+       SİPARİŞE GERİ DÖN
+    ========================================= */
+
+    function goBack() {
+
+        document.getElementById(
+            "summaryPage"
+        ).classList.add(
+            "hidden"
+        );
+
+
+        document.getElementById(
+            "orderPage"
+        ).classList.remove(
+            "hidden"
+        );
+
+
+        window.scrollTo(
+            0,
+            0
+        );
+
+    }
+
+
+    /* =========================================
+       SİPARİŞİ İPTAL ET
+    ========================================= */
+
+    function cancelOrder() {
+        localStorage.removeItem(STORAGE_KEY);
+
+        order = {
+            items: [],
+            name: "",
+            address: "",
+            payment: "",
+            note: "",
+            latitude: null,
+            longitude: null,
+            googleMapsUrl: ""
+        };
+
+        document.getElementById("customerName").value = "";
+        document.getElementById("customerAddress").value = "";
+        document.getElementById("orderNote").value = "";
+        document.querySelectorAll('input[name="payment"]').forEach(input => input.checked = false);
+        document.getElementById("locationStatus").textContent = "";
+        document.getElementById("totalPrice").textContent = "0 TL";
+
+        renderProducts();
+
+        ["summaryPage","locationPage","reviewPage","notificationPage"].forEach(id => {
+            document.getElementById(id).classList.add("hidden");
+        });
+
+        document.getElementById("orderPage").classList.remove("hidden");
+        window.scrollTo(0, 0);
+    }
+
+    /* =========================================
+       WHATSAPP
+    ========================================= */
+
+    async function sendToWhatsApp() {
+        const items = order.items
+            .map(item => ({
+                productId: item.productId,
+                quantity: Number(item.quantity)
+            }))
+            .filter(item => item.quantity > 0);
+
+        if (!items.length) {
+            alert("Siparişinizde ürün bulunmuyor.");
+            return;
+        }
+
+        const { data, error } = await supabaseClient.rpc("create_order", {
+            p_name: order.name,
+            p_address: order.address,
+            p_payment: order.payment,
+            p_note: order.note || "",
+            p_latitude: order.latitude,
+            p_longitude: order.longitude,
+            p_google_maps_url: order.googleMapsUrl || "",
+            p_items: items
+        });
+
+        if (error) {
+            console.error(error);
+            alert("Sipariş kaydedilemedi: " + error.message);
+            return;
+        }
+
+        const savedOrder = data || {};
+        const savedItems = Array.isArray(savedOrder.items) ? savedOrder.items : [];
+        const savedTotal = Number(savedOrder.total || 0);
+
+        let message =
+            `Merhaba, ben ${order.name}.
+
+` +
+            `Sipariş vermek istiyorum:
+
+`;
+
+        savedItems.forEach(item => {
+            message += `${item.quantity} adet ${item.name}
+`;
+        });
+
+        message += `
+Toplam: ${savedTotal.toLocaleString("tr-TR")} TL
+`;
+        message += `Adresim: ${order.address}
+`;
+
+        if (order.googleMapsUrl) {
+            message += `
+📍 Google Maps Konumu:
+${order.googleMapsUrl}
+`;
+            const qrUrl =
+                "https://api.qrserver.com/v1/create-qr-code/?size=600x600&data=" +
+                encodeURIComponent(order.googleMapsUrl);
+            message += `
+📱 Konum QR Kodu:
+${qrUrl}
+`;
+        }
+
+        message += `
+Ödeme: ${order.payment}
+`;
+        if (order.note) message += `Sipariş notu: ${order.note}
+`;
+        message += `
+Sipariş No: #${savedOrder.id}`;
+
+        localStorage.removeItem(STORAGE_KEY);
+
+        const phoneNumber = "905451014563";
+        window.location.href =
+            "https://wa.me/" + phoneNumber + "?text=" + encodeURIComponent(message);
+    }
+
+    /* =========================================
+       FORM DEĞİŞİKLİKLERİNİ KAYDET
+    ========================================= */
+
+    document.getElementById(
+        "customerName"
+    ).addEventListener(
+        "input",
+        function() {
+
+            order.name =
+                this.value;
+
+            saveOrder();
+
+        }
+    );
+
+
+    document.getElementById(
+        "customerAddress"
+    ).addEventListener(
+        "input",
+        function() {
+
+            order.address =
+                this.value;
+
+            saveOrder();
+
+        }
+    );
+
+
+    document.getElementById(
+        "orderNote"
+    ).addEventListener(
+        "input",
+        function() {
+
+            order.note =
+                this.value;
+
+            saveOrder();
+
+        }
+    );
+
+
+    document
+        .querySelectorAll(
+            'input[name="payment"]'
+        )
+        .forEach(
+            input => {
+
+                input.addEventListener(
+                    "change",
+                    function() {
+
+                        order.payment =
+                            this.value;
+
+                        saveOrder();
+
+                    }
+                );
+
+            }
+        );
+
+
+    /* =========================================
+       YORUM SİSTEMİ
+       LOCAL STORAGE
+    ========================================= */
+
+
+    /*
+     * TÜM YORUMLARI AL
+     */
+
+    function getReviews() {
+
+        const savedReviews =
+            localStorage.getItem(
+                REVIEW_STORAGE_KEY
+            );
+
+
+        if (!savedReviews) {
+
+            return [];
+
+        }
+
+
+        try {
+
+            const reviews =
+                JSON.parse(
+                    savedReviews
+                );
+
+
+            if (
+                !Array.isArray(
+                    reviews
+                )
+            ) {
+
+                return [];
+
+            }
+
+
+            return reviews;
+
+        } catch (error) {
+
+            console.error(
+                "Yorumlar okunamadı:",
+                error
+            );
+
+
+            return [];
+
+        }
+
+    }
+
+
+    /*
+     * YORUMLARI KAYDET
+     */
+
+    function saveReviews(
+        reviews
+    ) {
+
+        localStorage.setItem(
+            REVIEW_STORAGE_KEY,
+            JSON.stringify(
+                reviews
+            )
+        );
+
+    }
+
+
+    /* =========================================
+       YORUM SAYFASINI AÇ
+    ========================================= */
+
+    function openReviewPage() {
+
+        /*
+         * GÜNCEL YORUMLARI GETİR
+         */
+
+        renderReviews();
+
+
+        /*
+         * DİĞER SAYFALARI GİZLE
+         */
+
+        document.getElementById(
+            "orderPage"
+        ).classList.add(
+            "hidden"
+        );
+
+
+        document.getElementById(
+            "summaryPage"
+        ).classList.add(
+            "hidden"
+        );
+
+
+        document.getElementById(
+            "locationPage"
+        ).classList.add(
+            "hidden"
+        );
+
+
+        document.getElementById(
+            "notificationPage"
+        ).classList.add(
+            "hidden"
+        );
+
+
+        /*
+         * YORUM SAYFASINI AÇ
+         */
+
+        document.getElementById(
+            "reviewPage"
+        ).classList.remove(
+            "hidden"
+        );
+
+
+        window.scrollTo(
+            0,
+            0
+        );
+
+    }
+
+
+    /* =========================================
+       YORUM SAYFASINI KAPAT
+    ========================================= */
+
+    function closeReviewPage() {
+
+        document.getElementById(
+            "reviewPage"
+        ).classList.add(
+            "hidden"
+        );
+
+
+        document.getElementById(
+            "orderPage"
+        ).classList.remove(
+            "hidden"
+        );
+
+
+        window.scrollTo(
+            0,
+            0
+        );
+
+    }
+
+
+    /* =========================================
+       YILDIZ SEÇ
+    ========================================= */
+
+    function selectReviewRating(
+        rating
+    ) {
+
+        selectedReviewRating =
+            rating;
+
+
+        const stars =
+            document.querySelectorAll(
+                "#starSelector button"
+            );
+
+
+        stars.forEach(
+            function(star) {
+
+                const starRating =
+                    Number(
+                        star.dataset.rating
+                    );
+
+
+                if (
+                    starRating <=
+                    selectedReviewRating
+                ) {
+
+                    star.classList.add(
+                        "selected"
+                    );
+
+                } else {
+
+                    star.classList.remove(
+                        "selected"
+                    );
+
+                }
+
+            }
+        );
+
+    }
+
+
+    /* =========================================
+       YILDIZLARI OLUŞTUR
+    ========================================= */
+
+    function getReviewStars(
+        rating
+    ) {
+
+        let stars = "";
+
+
+        for (
+            let i = 1;
+            i <= 5;
+            i++
+        ) {
+
+            if (
+                i <= rating
+            ) {
+
+                stars += "★";
+
+            } else {
+
+                stars += "☆";
+
+            }
+
+        }
+
+
+        return stars;
+
+    }
+
+
+    /* =========================================
+       YORUM GÖNDER
+    ========================================= */
+
+    function submitReview() {
+
+        const name =
+            document.getElementById(
+                "reviewName"
+            ).value.trim();
+
+
+        const comment =
+            document.getElementById(
+                "reviewComment"
+            ).value.trim();
+
+
+        /*
+         * AD KONTROLÜ
+         */
+
+        if (!name) {
+
+            alert(
+                "Lütfen adınızı girin."
+            );
+
+            document.getElementById(
+                "reviewName"
+            ).focus();
+
+            return;
+
+        }
+
+
+        /*
+         * PUAN KONTROLÜ
+         */
+
+        if (
+            selectedReviewRating < 1
+        ) {
+
+            alert(
+                "Lütfen 1 ile 5 arasında yıldız seçin."
+            );
+
+            return;
+
+        }
+
+
+        /*
+         * YORUM KONTROLÜ
+         */
+
+        if (!comment) {
+
+            alert(
+                "Lütfen yorumunuzu yazın."
+            );
+
+            document.getElementById(
+                "reviewComment"
+            ).focus();
+
+            return;
+
+        }
+
+
+        /*
+         * MEVCUT YORUMLAR
+         */
+
+        const reviews =
+            getReviews();
+
+
+        /*
+         * YENİ YORUM
+         */
+
+        const newReview = {
+
+            id:
+                Date.now(),
+
+            name:
+                name.substring(
+                    0,
+                    50
+                ),
+
+            rating:
+                selectedReviewRating,
+
+            comment:
+                comment.substring(
+                    0,
+                    500
+                ),
+
+            createdAt:
+                new Date().toISOString()
+
+        };
+
+
+        /*
+         * EN YENİ YORUM EN ÜSTTE
+         */
+
+        reviews.unshift(
+            newReview
+        );
+
+
+        /*
+         * KAYDET
+         */
+
+        saveReviews(
+            reviews
+        );
+
+
+        /*
+         * FORMU TEMİZLE
+         */
+
+        document.getElementById(
+            "reviewName"
+        ).value =
+            "";
+
+
+        document.getElementById(
+            "reviewComment"
+        ).value =
+            "";
+
+
+        selectedReviewRating =
+            0;
+
+
+        document
+            .querySelectorAll(
+                "#starSelector button"
+            )
+            .forEach(
+                function(star) {
+
+                    star.classList.remove(
+                        "selected"
+                    );
+
+                }
+            );
+
+
+        /*
+         * YORUMLARI YENİLE
+         */
+
+        renderReviews();
+
+
+        /*
+         * BİLDİRİM
+         */
+
+        alert(
+            "Yorumunuz kaydedildi. Teşekkür ederiz!"
+        );
+
+    }
+
+
+    /* =========================================
+       YORUMLARI GÖSTER
+    ========================================= */
+
+    function renderReviews() {
+
+        const reviews =
+            getReviews();
+
+
+        const list =
+            document.getElementById(
+                "reviewList"
+            );
+
+
+        /*
+         * YORUM SAYISINI GÜNCELLE
+         */
+
+        document.getElementById(
+            "reviewCount"
+        ).textContent =
+            reviews.length;
+
+
+        /*
+         * YORUM SAYISI
+         */
+
+        if (
+            reviews.length === 0
+        ) {
+
+            document.getElementById(
+                "reviewCountText"
+            ).textContent =
+                "Henüz yorum yok.";
+
+        } else {
+
+            document.getElementById(
+                "reviewCountText"
+            ).textContent =
+
+                reviews.length +
+                " yorum";
+
+        }
+
+
+        /*
+         * ORTALAMA PUAN
+         */
+
+        let average =
+            0;
+
+
+        if (
+            reviews.length > 0
+        ) {
+
+            const total =
+                reviews.reduce(
+                    function(
+                        sum,
+                        review
+                    ) {
+
+                        return (
+                            sum +
+                            Number(
+                                review.rating
+                            )
+                        );
+
+                    },
+                    0
+                );
+
+
+            average =
+                total /
+                reviews.length;
+
+        }
+
+
+        document.getElementById(
+            "reviewAverage"
+        ).textContent =
+            average.toFixed(1);
+
+
+        document.getElementById(
+            "reviewAverageStars"
+        ).textContent =
+
+            reviews.length > 0
+
+                ? getReviewStars(
+                    Math.round(
+                        average
+                    )
+                )
+
+                : "☆☆☆☆☆";
+
+
+        /*
+         * LİSTEYİ TEMİZLE
+         */
+
+        list.innerHTML = "";
+
+
+        /*
+         * YORUM YOKSA
+         */
+
+        if (
+            reviews.length === 0
+        ) {
+
+            list.innerHTML = `
+
+                <div class="no-reviews">
+
+                    Henüz müşteri yorumu bulunmuyor.
+
+                    <br><br>
+
+                    İlk yorumu siz yapın! ⭐
+
+                </div>
+
+            `;
+
+            return;
+
+        }
+
+
+        /*
+         * YORUMLARI OLUŞTUR
+         */
+
+        reviews.forEach(
+            function(review) {
+
+                const item =
+                    document.createElement(
+                        "div"
+                    );
+
+
+                item.className =
+                    "review-item";
+
+
+                /*
+                 * ÜST KISIM
+                 */
+
+                const header =
+                    document.createElement(
+                        "div"
+                    );
+
+
+                header.className =
+                    "review-item-header";
+
+
+                /*
+                 * İSİM
+                 */
+
+                const name =
+                    document.createElement(
+                        "div"
+                    );
+
+
+                name.className =
+                    "reviewer-name";
+
+
+                name.textContent =
+                    review.name;
+
+
+                /*
+                 * YILDIZ
+                 */
+
+                const stars =
+                    document.createElement(
+                        "div"
+                    );
+
+
+                stars.className =
+                    "review-item-stars";
+
+
+                stars.textContent =
+                    getReviewStars(
+                        Number(
+                            review.rating
+                        )
+                    );
+
+
+                /*
+                 * YORUM
+                 */
+
+                const comment =
+                    document.createElement(
+                        "div"
+                    );
+
+
+                comment.className =
+                    "review-comment";
+
+
+                comment.textContent =
+                    review.comment;
+
+
+                /*
+                 * BİRLEŞTİR
+                 */
+
+                header.appendChild(
+                    name
+                );
+
+
+                header.appendChild(
+                    stars
+                );
+
+
+                item.appendChild(
+                    header
+                );
+
+
+                item.appendChild(
+                    comment
+                );
+
+
+                list.appendChild(
+                    item
+                );
+
+            }
+        );
+
+    }
+
+
+    /* =========================================
+       BİLDİRİM SİSTEMİ
+    ========================================= */
+
+
+    /*
+     * BUGÜNÜ YYYY-MM-DD OLARAK AL
+     */
+
+    function getTodayDate() {
+
+        const now =
+            new Date();
+
+        const year =
+            now.getFullYear();
+
+        const month =
+            String(
+                now.getMonth() + 1
+            ).padStart(
+                2,
+                "0"
+            );
+
+        const day =
+            String(
+                now.getDate()
+            ).padStart(
+                2,
+                "0"
+            );
+
+        return (
+            year +
+            "-" +
+            month +
+            "-" +
+            day
+        );
+
+    }
+
+
+    /*
+     * BİLDİRİM AKTİF Mİ?
+     */
+
+    function isNotificationActive(
+        notification
+    ) {
+
+        if (
+            notification.active !== true
+        ) {
+
+            return false;
+
+        }
+
+
+        const today =
+            getTodayDate();
+
+
+        if (
+            notification.startDate &&
+            today <
+            notification.startDate
+        ) {
+
+            return false;
+
+        }
+
+
+        if (
+            notification.endDate &&
+            today >
+            notification.endDate
+        ) {
+
+            return false;
+
+        }
+
+
+        return true;
+
+    }
+
+
+    /*
+     * AKTİF BİLDİRİMLERİ AL
+     */
+
+    function getActiveNotifications() {
+
+        return NOTIFICATIONS.filter(
+            function(notification) {
+
+                return isNotificationActive(
+                    notification
+                );
+
+            }
+        );
+
+    }
+
+
+    /*
+     * OKUNAN BİLDİRİMLERİ AL
+     */
+
+    function getReadNotifications() {
+
+        const saved =
+            localStorage.getItem(
+                NOTIFICATION_READ_STORAGE_KEY
+            );
+
+
+        if (!saved) {
+
+            return [];
+
+        }
+
+
+        try {
+
+            const data =
+                JSON.parse(
+                    saved
+                );
+
+
+            if (
+                !Array.isArray(data)
+            ) {
+
+                return [];
+
+            }
+
+
+            return data;
+
+        } catch (error) {
+
+            console.error(
+                "Okunan bildirimler okunamadı:",
+                error
+            );
+
+
+            return [];
+
+        }
+
+    }
+
+
+    /*
+     * OKUNAN BİLDİRİMLERİ KAYDET
+     */
+
+    function saveReadNotifications(
+        ids
+    ) {
+
+        localStorage.setItem(
+            NOTIFICATION_READ_STORAGE_KEY,
+            JSON.stringify(
+                ids
+            )
+        );
+
+    }
+
+
+    /*
+     * BİLDİRİMİ OKUNDU OLARAK İŞARETLE
+     */
+
+    function markNotificationAsRead(
+        id
+    ) {
+
+        const readIds =
+            getReadNotifications();
+
+
+        if (
+            !readIds.includes(id)
+        ) {
+
+            readIds.push(id);
+
+            saveReadNotifications(
+                readIds
+            );
+
+        }
+
+
+        updateNotificationCount();
+
+    }
+
+
+    /*
+     * TÜM BİLDİRİMLERİ OKUNDU YAP
+     */
+
+    function markAllNotificationsAsRead() {
+
+        const notifications =
+            getActiveNotifications();
+
+
+        const ids =
+            notifications.map(
+                function(notification) {
+
+                    return notification.id;
+
+                }
+            );
+
+
+        saveReadNotifications(
+            ids
+        );
+
+
+        updateNotificationCount();
+
+
+        renderNotifications();
+
+    }
+
+
+    /*
+     * OKUNMAMIŞ BİLDİRİM SAYISI
+     */
+
+    function getUnreadNotificationCount() {
+
+        const notifications =
+            getActiveNotifications();
+
+
+        const readIds =
+            getReadNotifications();
+
+
+        return notifications.filter(
+            function(notification) {
+
+                return !readIds.includes(
+                    notification.id
+                );
+
+            }
+        ).length;
+
+    }
+
+
+    /*
+     * BİLDİRİM ROZETİNİ GÜNCELLE
+     */
+
+    function updateNotificationCount() {
+
+        const count =
+            getUnreadNotificationCount();
+
+
+        const badge =
+            document.getElementById(
+                "notificationCount"
+            );
+
+
+        if (!badge) {
+
+            return;
+
+        }
+
+
+        badge.textContent =
+            count > 99
+                ? "99+"
+                : count;
+
+
+        /*
+         * HİÇ BİLDİRİM YOKSA ROZETİ GİZLE
+         */
+
+        if (count === 0) {
+
+            badge.classList.add(
+                "hidden"
+            );
+
+        } else {
+
+            badge.classList.remove(
+                "hidden"
+            );
+
+        }
+
+    }
+
+
+    /*
+     * TARİHİ GÖSTER
+     */
+
+    function formatNotificationDate(
+        date
+    ) {
+
+        if (!date) {
+
+            return "";
+
+        }
+
+
+        const parts =
+            date.split("-");
+
+
+        if (
+            parts.length !== 3
+        ) {
+
+            return date;
+
+        }
+
+
+        return (
+            parts[2] +
+            "." +
+            parts[1] +
+            "." +
+            parts[0]
+        );
+
+    }
+
+
+    /* =========================================
+       BİLDİRİMLER SAYFASINI AÇ
+    ========================================= */
+
+    function openNotificationPage() {
+
+        /*
+         * BİLDİRİMLERİ GÖSTER
+         */
+
+        renderNotifications();
+
+
+        /*
+         * DİĞER SAYFALARI GİZLE
+         */
+
+        document.getElementById(
+            "orderPage"
+        ).classList.add(
+            "hidden"
+        );
+
+
+        document.getElementById(
+            "summaryPage"
+        ).classList.add(
+            "hidden"
+        );
+
+
+        document.getElementById(
+            "locationPage"
+        ).classList.add(
+            "hidden"
+        );
+
+
+        document.getElementById(
+            "reviewPage"
+        ).classList.add(
+            "hidden"
+        );
+
+
+        /*
+         * BİLDİRİMLERİ AÇ
+         */
+
+        document.getElementById(
+            "notificationPage"
+        ).classList.remove(
+            "hidden"
+        );
+
+
+        window.scrollTo(
+            0,
+            0
+        );
+
+    }
+
+
+    /* =========================================
+       BİLDİRİMLER SAYFASINI KAPAT
+    ========================================= */
+
+    function closeNotificationPage() {
+
+        document.getElementById(
+            "notificationPage"
+        ).classList.add(
+            "hidden"
+        );
+
+
+        document.getElementById(
+            "orderPage"
+        ).classList.remove(
+            "hidden"
+        );
+
+
+        window.scrollTo(
+            0,
+            0
+        );
+
+    }
+
+
+    /* =========================================
+       BİLDİRİMLERİ GÖSTER
+    ========================================= */
+
+    function renderNotifications() {
+
+        const list =
+            document.getElementById(
+                "notificationList"
+            );
+
+
+        if (!list) {
+
+            return;
+
+        }
+
+
+        const notifications =
+            getActiveNotifications();
+
+
+        const readIds =
+            getReadNotifications();
+
+
+        /*
+         * ROZETİ GÜNCELLE
+         */
+
+        updateNotificationCount();
+
+
+        /*
+         * LİSTEYİ TEMİZLE
+         */
+
+        list.innerHTML = "";
+
+
+        /*
+         * BİLDİRİM YOKSA
+         */
+
+        if (
+            notifications.length === 0
+        ) {
+
+            list.innerHTML = `
+
+                <div class="no-notifications">
+
+                    🔔 Şu anda aktif bir bildirim
+                    bulunmuyor.
+
+                </div>
+
+            `;
+
+            return;
+
+        }
+
+
+        /*
+         * TÜMÜNÜ OKU BUTONU
+         */
+
+        const unreadCount =
+            notifications.filter(
+                function(notification) {
+
+                    return !readIds.includes(
+                        notification.id
+                    );
+
+                }
+            ).length;
+
+
+        if (
+            unreadCount > 0
+        ) {
+
+            const readAllButton =
+                document.createElement(
+                    "button"
+                );
+
+
+            readAllButton.type =
+                "button";
+
+
+            readAllButton.className =
+                "main-button back-button";
+
+
+            readAllButton.style.marginTop =
+                "0";
+
+
+            readAllButton.style.marginBottom =
+                "18px";
+
+
+            readAllButton.textContent =
+                "✓ Tüm Bildirimleri Okundu İşaretle";
+
+
+            readAllButton.onclick =
+                function() {
+
+                    markAllNotificationsAsRead();
+
+                };
+
+
+            list.appendChild(
+                readAllButton
+            );
+
+        }
+
+
+        /*
+         * BİLDİRİMLERİ OLUŞTUR
+         */
+
+        notifications.forEach(
+            function(notification) {
+
+                const isRead =
+                    readIds.includes(
+                        notification.id
+                    );
+
+
+                const item =
+                    document.createElement(
+                        "div"
+                    );
+
+
+                item.className =
+                    "notification-item " +
+                    (
+                        isRead
+                            ? "read"
+                            : "unread"
+                    );
+
+
+                /*
+                 * ÜST KISIM
+                 */
+
+                const header =
+                    document.createElement(
+                        "div"
+                    );
+
+
+                header.className =
+                    "notification-item-header";
+
+
+                /*
+                 * BAŞLIK
+                 */
+
+                const title =
+                    document.createElement(
+                        "div"
+                    );
+
+
+                title.className =
+                    "notification-title";
+
+
+                title.textContent =
+                    notification.title;
+
+
+                header.appendChild(
+                    title
+                );
+
+
+                /*
+                 * YENİ ROZETİ
+                 */
+
+                if (!isRead) {
+
+                    const newBadge =
+                        document.createElement(
+                            "span"
+                        );
+
+
+                    newBadge.className =
+                        "notification-new";
+
+
+                    newBadge.textContent =
+                        "YENİ";
+
+
+                    header.appendChild(
+                        newBadge
+                    );
+
+                }
+
+
+                /*
+                 * MESAJ
+                 */
+
+                const message =
+                    document.createElement(
+                        "div"
+                    );
+
+
+                message.className =
+                    "notification-message";
+
+
+                message.textContent =
+                    notification.message;
+
+
+                /*
+                 * TARİH
+                 */
+
+                const date =
+                    document.createElement(
+                        "div"
+                    );
+
+
+                date.className =
+                    "notification-date";
+
+
+                if (
+                    notification.startDate
+                ) {
+
+                    date.textContent =
+                        "📅 " +
+                        formatNotificationDate(
+                            notification.startDate
+                        );
+
+                }
+
+
+                /*
+                 * BİRLEŞTİR
+                 */
+
+                item.appendChild(
+                    header
+                );
+
+
+                item.appendChild(
+                    message
+                );
+
+
+                if (
+                    notification.startDate
+                ) {
+
+                    item.appendChild(
+                        date
+                    );
+
+                }
+
+
+                /*
+                 * TIKLANINCA OKUNDU
+                 */
+
+                item.addEventListener(
+                    "click",
+                    function() {
+
+                        markNotificationAsRead(
+                            notification.id
+                        );
+
+
+                        item.classList.remove(
+                            "unread"
+                        );
+
+
+                        item.classList.add(
+                            "read"
+                        );
+
+
+                        const newBadge =
+                            item.querySelector(
+                                ".notification-new"
+                            );
+
+
+                        if (newBadge) {
+
+                            newBadge.remove();
+
+                        }
+
+                    }
+                );
+
+
+                list.appendChild(
+                    item
+                );
+
+            }
+        );
+
+    }
+
+
+    /* =========================================
+       SAYFA AÇILINCA
+    ========================================= */
+
+    loadOrder();
+    loadProducts();
+
+
+    /*
+     * YORUM SAYISINI BAŞLANGIÇTA GÖSTER
+     */
+
+    renderReviews();
+
+
+    /*
+     * BİLDİRİM SAYISINI BAŞLANGIÇTA GÖSTER
+     */
+
+    updateNotificationCount();
+
+
+    /* =========================================
+       SAYFA TEKRAR GÖRÜNÜR OLDUĞUNDA
+       BİLDİRİM SAYISINI GÜNCELLE
+    ========================================= */
+
+    document.addEventListener(
+        "visibilitychange",
+        function() {
+
+            if (
+                !document.hidden
+            ) {
+
+                updateNotificationCount();
+
+            }
+
+        }
+    );
+
+
+    /* =========================================
+       PWA SERVICE WORKER
+    ========================================= */
+
+    if (
+        "serviceWorker" in navigator
+    ) {
+
+        window.addEventListener(
+            "load",
+            () => {
+
+                navigator.serviceWorker.register(
+                    "service-worker.js"
+                );
+
+            }
+        );
+
+    }
+
+</script>
+
+</body>
+
+</html>
