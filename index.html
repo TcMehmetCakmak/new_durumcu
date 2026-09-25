@@ -3165,31 +3165,93 @@ Sipariş No: #${savedOrder.id}`;
        BİLDİRİM SİSTEMİ - SUPABASE
     ========================================= */
 
-    async function loadNotifications() {
-        const today = new Date().toISOString().slice(0, 10);
-        const { data, error } = await supabaseClient
-            .from("notifications")
-            .select("id,title,message,active,start_date,end_date,created_at")
-            .eq("active", true)
-            .order("created_at", { ascending: false });
+    let notificationSyncInProgress = false;
 
-        if (error) {
-            console.error("Bildirimler yüklenemedi:", error);
+    function sortNotifications() {
+        notifications.sort((a, b) =>
+            new Date(b.created_at || 0) - new Date(a.created_at || 0)
+        );
+    }
+
+    async function loadNotifications() {
+        if (notificationSyncInProgress) return;
+        notificationSyncInProgress = true;
+
+        try {
+            const { data, error } = await supabaseClient
+                .from("notifications")
+                .select("id,title,message,active,start_date,end_date,created_at")
+                .eq("active", true)
+                .order("created_at", { ascending: false });
+
+            if (error) {
+                console.error("Bildirimler yüklenemedi:", error);
+                return;
+            }
+
+            // Sunucu RLS filtresine ek olarak istemci de 3 günlük görünürlük kuralını uygular.
+            notifications = data || [];
+            sortNotifications();
+            updateNotificationCount();
+
+            if (!document.getElementById("notificationPage").classList.contains("hidden")) {
+                renderNotifications();
+            }
+        } finally {
+            notificationSyncInProgress = false;
+        }
+    }
+
+    function applyRealtimeNotification(payload) {
+        const eventType = payload.eventType;
+        const changed = payload.new || {};
+        const old = payload.old || {};
+        const id = String(changed.id ?? old.id ?? "");
+
+        if (!id) {
+            loadNotifications();
             return;
         }
 
-        notifications = (data || []).filter(n =>
-            (!n.start_date || n.start_date <= today) &&
-            (!n.end_date || n.end_date >= today)
-        );
+        if (eventType === "DELETE" || changed.active === false) {
+            notifications = notifications.filter(n => String(n.id) !== id);
+        } else if (eventType === "INSERT" || eventType === "UPDATE") {
+            const incoming = changed;
+            const index = notifications.findIndex(n => String(n.id) === id);
+            if (index >= 0) notifications[index] = incoming;
+            else notifications.unshift(incoming);
+        }
+
+        sortNotifications();
         updateNotificationCount();
+
         if (!document.getElementById("notificationPage").classList.contains("hidden")) {
             renderNotifications();
         }
     }
 
     function getActiveNotifications() {
-        return notifications;
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        const maxStartDate = new Date(today);
+        maxStartDate.setDate(maxStartDate.getDate() + 3);
+
+        return notifications.filter(notification => {
+            if (notification.active === false) return false;
+
+            if (notification.start_date) {
+                const startDate = new Date(notification.start_date + "T00:00:00");
+                if (startDate > maxStartDate) return false;
+            }
+
+            if (notification.end_date) {
+                const endDate = new Date(notification.end_date + "T23:59:59");
+                if (endDate < today) return false;
+            }
+
+            return true;
+        });
     }
 
     function getReadNotifications() {
@@ -3330,15 +3392,25 @@ Sipariş No: #${savedOrder.id}`;
         });
     }
 
-
-
-
-    /* Supabase Realtime: admin bildirimi veya yeni yorum geldiğinde yenile */
-    supabaseClient
-        .channel("public-updates")
-        .on("postgres_changes", { event: "*", schema: "public", table: "notifications" }, () => loadNotifications())
+    /*
+     * Canlı bildirim akışı:
+     * 1) Realtime olayı geldiğinde kayıt direkt ekrana işlenir.
+     * 2) Realtime bağlantısı bir olayı kaçırırsa 5 saniyelik sessiz senkronizasyon düzeltir.
+     */
+    const publicUpdatesChannel = supabaseClient
+        .channel("public-updates-v2")
+        .on("postgres_changes", { event: "*", schema: "public", table: "notifications" }, applyRealtimeNotification)
         .on("postgres_changes", { event: "INSERT", schema: "public", table: "reviews" }, () => loadReviews())
-        .subscribe();
+        .subscribe(status => {
+            console.log("Realtime durumu:", status);
+            if (status === "SUBSCRIBED") loadNotifications();
+        });
+
+    const notificationSyncTimer = setInterval(() => {
+        if (!document.hidden && navigator.onLine) loadNotifications();
+    }, 5000);
+
+    window.addEventListener("online", loadNotifications);
 
     /* =========================================
        SAYFA AÇILINCA

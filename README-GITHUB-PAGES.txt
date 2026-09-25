@@ -1,29 +1,22 @@
-DÜRÜMCÜ - GITHUB PAGES + SUPABASE
+DÜRÜMCÜ - GITHUB PAGES + SUPABASE + PWA
 
-1. Supabase'te proje oluştur.
-2. supabase/schema.sql dosyasının tamamını Supabase > SQL Editor'da çalıştır.
-3. Authentication > Users > Add user ile işletme hesabı oluştur.
-4. Kullanıcının UUID'sini al.
-5. schema.sql içindeki profiles INSERT satırını gerçek UUID ile çalıştır.
-6. Project Settings > API'den Project URL ve Publishable key (eski projelerde anon key) al.
-7. public/supabase-config.js dosyasına bunları yaz.
-8. public klasörünü GitHub Pages repository köküne koy.
-9. GitHub Pages'i Settings > Pages'ten aç.
+KURULUM / GÜNCELLEME
+1. Proje dosyalarını GitHub Pages repository köküne yükleyin.
+2. Mevcut Supabase kurulumunuz varsa sadece notification-live-fix.sql dosyasını SQL Editor'da bir kez çalıştırın.
+3. İlk kurulum yapıyorsanız schema.sql dosyasını kullanabilirsiniz.
+4. supabase-config.js içindeki Project URL ve publishable/anon key bilgilerini kontrol edin.
+5. service_role / secret key frontend'e koymayın.
 
-Müşteri: index.html
-Admin: admin.html
+BİLDİRİM KURALI
+- active=true olmalı.
+- Süresi geçmiş bildirim gösterilmez.
+- start_date boşsa hemen görünür.
+- start_date bugün veya en fazla 3 gün sonrası ise görünür.
+- 4+ gün sonra başlayacak bildirim henüz müşteriye gösterilmez.
+- Zaman ilerleyip 3 günlük pencereye girdiğinde açık sayfa otomatik senkronizasyon ile bildirimi getirir.
+- Admin ekleme/güncelleme/silme işlemleri Supabase Realtime ile açık müşteri sayfasına refresh gerektirmeden yansır.
+- Realtime kısa süreli koparsa 5 saniyelik otomatik senkronizasyon yedek olarak çalışır.
 
-Ürünler artık index.html'e yazılmaz. Admin paneli Supabase products tablosunu değiştirir.
-Müşteri sayfası products tablosundaki güncel aktif ürünleri okur.
-
-Sipariş fiyatı browser'dan alınmaz; create_order PostgreSQL fonksiyonu mevcut ürün
-fiyatlarından tekrar hesaplar ve orders tablosuna kaydeder.
-
-service_role/secret key'i frontend'e koymayın.
-
-YENİ: YORUM + BİLDİRİM + PWA
-- Güncel schema.sql dosyasını Supabase SQL Editor'da tekrar çalıştırın. reviews ve notifications tabloları/policy'leri eklenir.
-- Admin panelinde "Bildirimler" sekmesinden eklenen aktif bildirimler tüm müşterilerde görünür.
-- Müşteri yorumları artık localStorage yerine Supabase reviews tablosunda tutulur; tüm cihazlarda ortaktır.
-- PWA için manifest.json, service-worker.js, icon-192.png ve icon-512.png dosyalarını da repository köküne koyun.
-- PWA kurulumu için site HTTPS üzerinden açılmalıdır (GitHub Pages HTTPS sağlar).
+PWA
+- index.html ve admin.html network-first çalışır; eski cache ana sayfayı kilitlemez.
+- manifest.json + service-worker.js + icon-192.png + icon-512.png dahildir.
