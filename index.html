@@ -998,6 +998,22 @@
             text-decoration: underline;
         }
 
+
+        .coupon-box { background:#fff7e6; border:1px solid #ffd58a; border-radius:12px; padding:14px; margin:8px 0 16px; }
+        .coupon-row { display:flex; gap:8px; align-items:stretch; }
+        .coupon-row input { margin:0; }
+        .coupon-apply { border:0; border-radius:10px; padding:0 16px; background:#222; color:#fff; font-weight:bold; cursor:pointer; white-space:nowrap; }
+        .coupon-status { margin-top:9px; font-size:13px; min-height:18px; }
+        .coupon-status.ok { color:#2e7d32; }
+        .coupon-status.error { color:#c62828; }
+        .discount-summary { margin-top:10px; padding-top:10px; border-top:1px dashed #ddd; }
+        .discount-line { display:flex; justify-content:space-between; gap:10px; margin-top:7px; }
+        .discount-line.saving { color:#2e7d32; font-weight:bold; }
+        .call-button { display:block; background:#1976d2; color:#fff; text-decoration:none; text-align:center; }
+        .notification-discount { margin-top:12px; padding:12px; border-radius:12px; background:#fff4d6; border:1px solid #ffd166; }
+        .notification-discount-code { font-size:18px; font-weight:bold; letter-spacing:1px; margin-top:6px; }
+        .copy-code-button { margin-top:8px; border:0; border-radius:8px; padding:8px 10px; cursor:pointer; background:#222; color:#fff; font-weight:bold; }
+
         /* =========================================
            MOBİL
         ========================================= */
@@ -1123,6 +1139,7 @@
                 Online Sipariş
             </p>
             <a href="admin.html" class="admin-link">⚙️ İşletme Girişi</a>
+            <a href="tel:+905451014563" class="main-button call-button">📞 Hemen Ara</a>
 
         </div>
 
@@ -1142,16 +1159,10 @@
 
             <!-- TOPLAM -->
 
-            <div class="total">
-
-                <span>
-                    Toplam
-                </span>
-
-                <span id="totalPrice">
-                    0 TL
-                </span>
-
+            <div class="discount-summary">
+                <div class="discount-line"><span>Ara Toplam</span><strong id="subtotalPrice">0 TL</strong></div>
+                <div id="discountLine" class="discount-line saving hidden"><span>İndirim</span><strong id="discountPrice">-0 TL</strong></div>
+                <div class="total"><span>Ödenecek Toplam</span><span id="totalPrice">0 TL</span></div>
             </div>
 
         </div>
@@ -1257,6 +1268,15 @@
                 placeholder="Örneğin: Soğan olmasın..."
             ></textarea>
 
+            <h2>İndirim Kodu</h2>
+            <div class="coupon-box">
+                <div class="coupon-row">
+                    <input id="couponCode" type="text" maxlength="40" placeholder="İndirim kodunuzu girin" autocomplete="off" style="text-transform:uppercase">
+                    <button type="button" class="coupon-apply" onclick="applyCouponCode()">Uygula</button>
+                </div>
+                <div id="couponStatus" class="coupon-status">İndirim bildiriminizdeki kodu buraya girebilirsiniz.</div>
+            </div>
+
             <!-- SİPARİŞİ OLUŞTUR -->
 
             <button
@@ -1292,10 +1312,12 @@
 
             <div id="summaryContent"></div>
 
+            <div id="summaryDiscountInfo" class="summary-info hidden" style="margin-top:15px"></div>
+
             <div class="summary-total">
 
                 <span>
-                    Toplam
+                    Ödenecek Toplam
                 </span>
 
                 <span id="summaryTotal">
@@ -1820,7 +1842,8 @@
         note: "",
         latitude: null,
         longitude: null,
-        googleMapsUrl: ""
+        googleMapsUrl: "",
+        couponCode: ""
     };
 
 
@@ -1829,6 +1852,7 @@
     ========================================= */
 
     let selectedReviewRating = 0;
+    let appliedCoupon = null;
 
 
     /* =========================================
@@ -1853,12 +1877,15 @@
                 note: data.note || "",
                 latitude: data.latitude || null,
                 longitude: data.longitude || null,
-                googleMapsUrl: data.googleMapsUrl || ""
+                googleMapsUrl: data.googleMapsUrl || "",
+                couponCode: data.couponCode || ""
             };
 
             document.getElementById("customerName").value = order.name;
             document.getElementById("customerAddress").value = order.address;
             document.getElementById("orderNote").value = order.note;
+            const couponInput = document.getElementById("couponCode");
+            if (couponInput) couponInput.value = order.couponCode || "";
 
             document.querySelectorAll('input[name="payment"]').forEach(input => {
                 input.checked = input.value === order.payment;
@@ -1888,6 +1915,7 @@
             products = Array.isArray(data) ? data : [];
             renderProducts();
             calculateTotal();
+            if (order.couponCode) applyCouponCode(true);
         } catch (error) {
             console.error("Ürünler yüklenemedi:", error);
             document.getElementById("productList").innerHTML =
@@ -1993,16 +2021,82 @@
         saveOrder();
     }
 
-    function calculateTotal() {
-        const total = order.items.reduce((sum, item) => {
+    function getSubtotal() {
+        return order.items.reduce((sum, item) => {
             const product = products.find(p => p.id === item.productId);
-            return sum + (product ? Number(product.price) * item.quantity : 0);
+            return sum + (product ? Number(product.price) * Number(item.quantity || 0) : 0);
         }, 0);
+    }
 
-        document.getElementById("totalPrice").textContent =
-            `${total.toLocaleString("tr-TR")} TL`;
+    function getPreviewDiscount(subtotal) {
+        if (!appliedCoupon || subtotal <= 0) return 0;
+        const value = Number(appliedCoupon.discount_value || 0);
+        if (appliedCoupon.discount_type === "percent") {
+            return Math.min(subtotal, subtotal * Math.min(value, 100) / 100);
+        }
+        if (appliedCoupon.discount_type === "fixed") {
+            return Math.min(subtotal, value);
+        }
+        return 0;
+    }
 
+    function calculateTotal() {
+        const subtotal = getSubtotal();
+        const discount = getPreviewDiscount(subtotal);
+        const total = Math.max(0, subtotal - discount);
+        const subtotalEl = document.getElementById("subtotalPrice");
+        const totalEl = document.getElementById("totalPrice");
+        const discountEl = document.getElementById("discountPrice");
+        const discountLine = document.getElementById("discountLine");
+        if (subtotalEl) subtotalEl.textContent = `${subtotal.toLocaleString("tr-TR")} TL`;
+        if (totalEl) totalEl.textContent = `${total.toLocaleString("tr-TR")} TL`;
+        if (discountEl) discountEl.textContent = `-${discount.toLocaleString("tr-TR")} TL`;
+        if (discountLine) discountLine.classList.toggle("hidden", discount <= 0);
         return total;
+    }
+
+    async function applyCouponCode(silent = false) {
+        const input = document.getElementById("couponCode");
+        const status = document.getElementById("couponStatus");
+        const code = (input?.value || order.couponCode || "").trim().toUpperCase();
+        if (!code) {
+            appliedCoupon = null;
+            order.couponCode = "";
+            saveOrder();
+            calculateTotal();
+            if (status) { status.textContent = "İndirim kodunu girin."; status.className = "coupon-status"; }
+            return false;
+        }
+        try {
+            const { data, error } = await supabaseClient.rpc("validate_coupon", {
+                p_code: code,
+                p_subtotal: getSubtotal()
+            });
+            if (error) throw error;
+            if (!data || data.valid !== true) {
+                appliedCoupon = null;
+                order.couponCode = "";
+                saveOrder();
+                calculateTotal();
+                if (status) { status.textContent = data?.message || "İndirim kodu geçersiz veya aktif değil."; status.className = "coupon-status error"; }
+                if (!silent) input?.focus();
+                return false;
+            }
+            appliedCoupon = data;
+            order.couponCode = code;
+            if (input) input.value = code;
+            saveOrder();
+            calculateTotal();
+            if (status) {
+                status.textContent = `✓ Kod uygulandı. ${Number(data.discount_amount || 0).toLocaleString("tr-TR")} TL indirim.`;
+                status.className = "coupon-status ok";
+            }
+            return true;
+        } catch (error) {
+            console.error("İndirim kodu doğrulanamadı:", error);
+            if (status) { status.textContent = "Kod doğrulanamadı. Bağlantınızı kontrol edin."; status.className = "coupon-status error"; }
+            return false;
+        }
     }
 
     /* =========================================
@@ -2760,7 +2854,6 @@
         const address = document.getElementById("customerAddress").value.trim();
         const note = document.getElementById("orderNote").value.trim();
         const payment = document.querySelector('input[name="payment"]:checked');
-
         if (!name) return alert("Lütfen adınızı girin.");
         if (!address) return alert("Lütfen adresinizi girin.");
         if (order.items.length === 0) return alert("Lütfen ürün seçin.");
@@ -2770,32 +2863,35 @@
         order.address = address;
         order.payment = payment.value;
         order.note = note;
+        order.couponCode = (document.getElementById("couponCode")?.value || "").trim().toUpperCase();
         saveOrder();
 
-        const total = calculateTotal();
+        const subtotal = getSubtotal();
+        const discount = getPreviewDiscount(subtotal);
+        const total = Math.max(0, subtotal - discount);
         let html = "";
-
         order.items.forEach(item => {
             const product = products.find(p => p.id === item.productId);
             if (!product) return;
-
             const lineTotal = Number(product.price) * item.quantity;
-            html += `
-                <div class="summary-row">
-                    <span>${escapeHtml(product.icon || "🍽️")} ${escapeHtml(product.name)} × ${item.quantity}</span>
-                    <span>${lineTotal.toLocaleString("tr-TR")} TL</span>
-                </div>
-            `;
+            html += `<div class="summary-row"><span>${escapeHtml(product.icon || "🍽️")} ${escapeHtml(product.name)} × ${item.quantity}</span><span>${lineTotal.toLocaleString("tr-TR")} TL</span></div>`;
         });
-
         document.getElementById("summaryContent").innerHTML = html;
-        document.getElementById("summaryTotal").textContent =
-            `${total.toLocaleString("tr-TR")} TL`;
+        document.getElementById("summaryTotal").textContent = `${total.toLocaleString("tr-TR")} TL`;
+        const info = document.getElementById("summaryDiscountInfo");
+        if (info) {
+            if (discount > 0 && appliedCoupon) {
+                info.innerHTML = `<div class="discount-line"><span>Ara Toplam</span><strong>${subtotal.toLocaleString("tr-TR")} TL</strong></div><div class="discount-line saving"><span>İndirim (${escapeHtml(order.couponCode)})</span><strong>-${discount.toLocaleString("tr-TR")} TL</strong></div>`;
+                info.classList.remove("hidden");
+            } else {
+                info.innerHTML = "";
+                info.classList.add("hidden");
+            }
+        }
         document.getElementById("summaryName").textContent = order.name;
         document.getElementById("summaryAddress").textContent = order.address;
         document.getElementById("summaryPayment").textContent = order.payment;
         document.getElementById("summaryNote").textContent = order.note || "Not belirtilmedi.";
-
         document.getElementById("orderPage").classList.add("hidden");
         document.getElementById("summaryPage").classList.remove("hidden");
         window.scrollTo(0, 0);
@@ -2839,55 +2935,37 @@
        SİPARİŞİ İPTAL ET
     ========================================= */
 
-    function cancelOrder() {
+    function resetOrderState() {
         localStorage.removeItem(STORAGE_KEY);
-
-        order = {
-            items: [],
-            name: "",
-            address: "",
-            payment: "",
-            note: "",
-            latitude: null,
-            longitude: null,
-            googleMapsUrl: ""
-        };
-
+        order = { items: [], name: "", address: "", payment: "", note: "", latitude: null, longitude: null, googleMapsUrl: "", couponCode: "" };
+        appliedCoupon = null;
         document.getElementById("customerName").value = "";
         document.getElementById("customerAddress").value = "";
         document.getElementById("orderNote").value = "";
+        const couponInput = document.getElementById("couponCode");
+        if (couponInput) couponInput.value = "";
+        const couponStatus = document.getElementById("couponStatus");
+        if (couponStatus) { couponStatus.textContent = "İndirim bildiriminizdeki kodu buraya girebilirsiniz."; couponStatus.className = "coupon-status"; }
         document.querySelectorAll('input[name="payment"]').forEach(input => input.checked = false);
         document.getElementById("locationStatus").textContent = "";
-        document.getElementById("totalPrice").textContent = "0 TL";
-
         renderProducts();
-
-        ["summaryPage","locationPage","reviewPage","notificationPage"].forEach(id => {
-            document.getElementById(id).classList.add("hidden");
-        });
-
+        calculateTotal();
+        ["summaryPage","locationPage","reviewPage","notificationPage"].forEach(id => document.getElementById(id)?.classList.add("hidden"));
         document.getElementById("orderPage").classList.remove("hidden");
         window.scrollTo(0, 0);
     }
+
+    function cancelOrder() { resetOrderState(); }
 
     /* =========================================
        WHATSAPP
     ========================================= */
 
     async function sendToWhatsApp() {
-        const items = order.items
-            .map(item => ({
-                productId: item.productId,
-                quantity: Number(item.quantity)
-            }))
-            .filter(item => item.quantity > 0);
+        const items = order.items.map(item => ({ productId: item.productId, quantity: Number(item.quantity) })).filter(item => item.quantity > 0);
+        if (!items.length) return alert("Siparişinizde ürün bulunmuyor.");
 
-        if (!items.length) {
-            alert("Siparişinizde ürün bulunmuyor.");
-            return;
-        }
-
-        const { data, error } = await supabaseClient.rpc("create_order", {
+        const { data, error } = await supabaseClient.rpc("create_order_with_coupon", {
             p_name: order.name,
             p_address: order.address,
             p_payment: order.payment,
@@ -2895,9 +2973,9 @@
             p_latitude: order.latitude,
             p_longitude: order.longitude,
             p_google_maps_url: order.googleMapsUrl || "",
-            p_items: items
+            p_items: items,
+            p_coupon_code: order.couponCode || ""
         });
-
         if (error) {
             console.error(error);
             alert("Sipariş kaydedilemedi: " + error.message);
@@ -2906,41 +2984,30 @@
 
         const savedOrder = data || {};
         const savedItems = Array.isArray(savedOrder.items) ? savedOrder.items : [];
+        const savedSubtotal = Number(savedOrder.subtotal || savedOrder.total || 0);
+        const savedDiscount = Number(savedOrder.discount_amount || 0);
         const savedTotal = Number(savedOrder.total || 0);
+        let message = `Merhaba, ben ${order.name}.
 
-        let message =
-            `Merhaba, ben ${order.name}.
-
-` +
-            `Sipariş vermek istiyorum:
+Sipariş vermek istiyorum:
 
 `;
-
-        savedItems.forEach(item => {
-            message += `${item.quantity} adet ${item.name}
-`;
-        });
-
+        savedItems.forEach(item => { message += `${item.quantity} adet ${item.name}
+`; });
         message += `
-Toplam: ${savedTotal.toLocaleString("tr-TR")} TL
+Ara Toplam: ${savedSubtotal.toLocaleString("tr-TR")} TL
 `;
-        message += `Adresim: ${order.address}
+        if (savedDiscount > 0) {
+            message += `İndirim${savedOrder.coupon_code ? ` (${savedOrder.coupon_code})` : ""}: -${savedDiscount.toLocaleString("tr-TR")} TL
 `;
-
-        if (order.googleMapsUrl) {
-            message += `
+        }
+        message += `Toplam: ${savedTotal.toLocaleString("tr-TR")} TL
+Adresim: ${order.address}
+`;
+        if (order.googleMapsUrl) message += `
 📍 Google Maps Konumu:
 ${order.googleMapsUrl}
 `;
-            const qrUrl =
-                "https://api.qrserver.com/v1/create-qr-code/?size=600x600&data=" +
-                encodeURIComponent(order.googleMapsUrl);
-            message += `
-📱 Konum QR Kodu:
-${qrUrl}
-`;
-        }
-
         message += `
 Ödeme: ${order.payment}
 `;
@@ -2949,11 +3016,11 @@ ${qrUrl}
         message += `
 Sipariş No: #${savedOrder.id}`;
 
-        localStorage.removeItem(STORAGE_KEY);
-
         const phoneNumber = "905451014563";
-        window.location.href =
-            "https://wa.me/" + phoneNumber + "?text=" + encodeURIComponent(message);
+        const whatsappUrl = "https://wa.me/" + phoneNumber + "?text=" + encodeURIComponent(message);
+        resetOrderState();
+        const opened = window.open(whatsappUrl, "_blank");
+        if (!opened) window.location.href = whatsappUrl;
     }
 
     /* =========================================
@@ -3212,7 +3279,7 @@ Sipariş No: #${savedOrder.id}`;
         try {
             const { data, error } = await supabaseClient
                 .from("notifications")
-                .select("id,title,message,active,start_date,end_date,created_at")
+                .select("id,title,message,active,start_date,end_date,created_at,notification_type,discount_type,discount_value,coupon_code")
                 .eq("active", true)
                 .order("created_at", { ascending: false });
 
@@ -3411,6 +3478,19 @@ Sipariş No: #${savedOrder.id}`;
 
             item.appendChild(header);
             item.appendChild(message);
+            if (notification.notification_type === "discount" && notification.coupon_code) {
+                const promo = document.createElement("div");
+                promo.className = "notification-discount";
+                const label = notification.discount_type === "percent"
+                    ? `%${Number(notification.discount_value || 0).toLocaleString("tr-TR")} indirim`
+                    : `${Number(notification.discount_value || 0).toLocaleString("tr-TR")} TL indirim`;
+                promo.innerHTML = `<strong>🎁 ${escapeHtml(label)}</strong><div>İndirim kodunuz:</div><div class="notification-discount-code">${escapeHtml(notification.coupon_code)}</div>`;
+                const copy = document.createElement("button");
+                copy.type = "button"; copy.className = "copy-code-button"; copy.textContent = "Kodu Kopyala";
+                copy.onclick = async (e) => { e.stopPropagation(); try { await navigator.clipboard.writeText(notification.coupon_code); copy.textContent = "Kopyalandı ✓"; } catch (_) { const ci=document.getElementById("couponCode"); if(ci){ci.value=notification.coupon_code;} } };
+                promo.appendChild(copy);
+                item.appendChild(promo);
+            }
             if (shownDate) item.appendChild(date);
 
             item.addEventListener("click", function() {
@@ -3432,6 +3512,7 @@ Sipariş No: #${savedOrder.id}`;
     const publicUpdatesChannel = supabaseClient
         .channel("public-updates-v3")
         .on("postgres_changes", { event: "*", schema: "public", table: "notifications" }, applyRealtimeNotification)
+        .on("postgres_changes", { event: "*", schema: "public", table: "products" }, () => loadProducts())
         .on("postgres_changes", { event: "*", schema: "public", table: "reviews" }, applyRealtimeReview)
         .subscribe(status => {
             console.log("Realtime durumu:", status);

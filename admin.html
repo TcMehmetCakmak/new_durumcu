@@ -39,6 +39,12 @@ label{display:block;margin:12px 0 6px;font-weight:bold}
 .modal{position:fixed;inset:0;background:#0008;display:flex;align-items:center;justify-content:center;padding:20px}
 .modal-card{background:#fff;border-radius:16px;padding:22px;max-width:520px;width:100%}
 .toast{position:fixed;right:20px;bottom:20px;background:#222;color:#fff;padding:12px 16px;border-radius:10px;display:none}
+
+.revenue-card{cursor:pointer;transition:transform .15s ease}.revenue-card:hover{transform:translateY(-2px)}
+.revenue-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}.revenue-box{background:#f7f7f7;border-radius:12px;padding:16px}.revenue-box strong{display:block;font-size:24px;margin-top:6px}
+.discount-admin-fields{margin-top:12px;padding:14px;background:#fff7e6;border:1px solid #ffd58a;border-radius:12px}
+.pdf-btn{background:#455a64;color:#fff}
+@media(max-width:600px){.revenue-grid{grid-template-columns:1fr}}
 @media(max-width:800px){.grid{grid-template-columns:1fr 1fr}.products{grid-template-columns:1fr}.form-grid,.filters{grid-template-columns:1fr}.container{padding:14px}.header{align-items:flex-start;flex-direction:column}}
 </style>
 </head>
@@ -71,7 +77,7 @@ label{display:block;margin:12px 0 6px;font-weight:bold}
     <div class="card"><div class="stat-label">Toplam Sipariş</div><div id="statTotal" class="stat-value">0</div></div>
     <div class="card"><div class="stat-label">Devam Eden</div><div id="statActive" class="stat-value">0</div></div>
     <div class="card"><div class="stat-label">Tamamlanan</div><div id="statDone" class="stat-value">0</div></div>
-    <div class="card"><div class="stat-label">Tamamlanan Ciro</div><div id="statRevenue" class="stat-value">0 TL</div></div>
+    <div class="card revenue-card" onclick="openRevenueModal()" title="Dönemsel ciroyu göster"><div class="stat-label">Tamamlanan Ciro · Detay için tıkla</div><div id="statRevenue" class="stat-value">0 TL</div></div>
   </div>
 
   <div class="tabs">
@@ -145,6 +151,16 @@ label{display:block;margin:12px 0 6px;font-weight:bold}
     <input id="notificationId" type="hidden">
     <label>Başlık</label><input id="notificationTitle" maxlength="120" placeholder="Örn. Hafta sonu kampanyası">
     <label>Mesaj</label><textarea id="notificationMessage" maxlength="1000" style="width:100%;min-height:110px;padding:12px;border:1px solid #ddd;border-radius:10px" placeholder="Bildirim mesajı..."></textarea>
+    <label>Bildirim türü</label>
+    <select id="notificationType" onchange="toggleNotificationDiscountFields()"><option value="info">Bilgilendirme</option><option value="discount">İndirim / Kampanya</option></select>
+    <div id="notificationDiscountFields" class="discount-admin-fields hidden">
+      <div class="form-grid">
+        <div><label>İndirim tipi</label><select id="notificationDiscountType"><option value="percent">Yüzde (%)</option><option value="fixed">Sabit TL</option></select></div>
+        <div><label>İndirim değeri</label><input id="notificationDiscountValue" type="number" min="0.01" step="0.01" placeholder="15"></div>
+        <div><label>İndirim kodu</label><input id="notificationCouponCode" readonly placeholder="Kaydedince otomatik oluşur"></div>
+      </div>
+      <div class="muted">İndirim kodu otomatik üretilir ve müşterinin bildiriminde gösterilir.</div>
+    </div>
     <div class="form-grid">
       <div><label>Başlangıç tarihi</label><input id="notificationStart" type="date"></div>
       <div><label>Bitiş tarihi</label><input id="notificationEnd" type="date"></div>
@@ -157,8 +173,21 @@ label{display:block;margin:12px 0 6px;font-weight:bold}
   </div>
 </div>
 
+<div id="revenueModal" class="modal hidden">
+  <div class="modal-card">
+    <div class="header"><div><h2>💰 Dönemsel Ciro</h2><div class="muted">Yalnızca tamamlanan siparişlerin ödenen toplamı.</div></div><button class="btn btn-light" onclick="closeRevenueModal()">✕</button></div>
+    <div class="revenue-grid">
+      <div class="revenue-box"><span>Son 1 Ay</span><strong id="revenue1m">0 TL</strong></div>
+      <div class="revenue-box"><span>Son 3 Ay</span><strong id="revenue3m">0 TL</strong></div>
+      <div class="revenue-box"><span>Son 6 Ay</span><strong id="revenue6m">0 TL</strong></div>
+      <div class="revenue-box"><span>Son 12 Ay / Yıllık</span><strong id="revenue12m">0 TL</strong></div>
+    </div>
+  </div>
+</div>
+
 <div id="toast" class="toast"></div>
 
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="supabase-config.js"></script>
 <script>
@@ -340,9 +369,11 @@ function renderOrders(){
     const items=(order.items||[]).map(i=>`${escapeHtml(i.icon)} ${escapeHtml(i.name)} × ${i.quantity} — ${money(i.lineTotal)}`).join("<br>");
     const date=new Date(order.created_at).toLocaleString("tr-TR");
     return `<div class="order"><div class="order-head"><div><strong>#${order.id}</strong> · ${escapeHtml(order.name)}<div class="muted">${date}</div></div>${badge}</div>
-      <div class="order-items">${items}</div><div><strong>Toplam: ${money(order.total)}</strong></div>
+      <div class="order-items">${items}</div>
+      <div><strong>Toplam: ${money(order.total)}</strong>${Number(order.discount_amount||0)>0?`<div class="muted">Ara toplam: ${money(order.subtotal||Number(order.total)+Number(order.discount_amount||0))} · İndirim: -${money(order.discount_amount)}${order.coupon_code?` · Kod: ${escapeHtml(order.coupon_code)}`:""}</div>`:""}</div>
       <div class="muted" style="margin-top:7px">📍 ${escapeHtml(order.address)}<br>💳 ${escapeHtml(order.payment)}${order.note?`<br>📝 ${escapeHtml(order.note)}`:""}</div>
       <div class="actions" style="margin-top:12px">
+        <button class="btn pdf-btn" onclick="downloadOrderPdf(${order.id})">🧾 Çıktı Al (PDF)</button>
         ${order.google_maps_url?`<a class="btn btn-light" href="${escapeAttr(order.google_maps_url)}" target="_blank" rel="noopener">Haritada Aç</a>`:""}
         ${order.status!=="tamamlandi"?`<button class="btn btn-success" onclick="setStatus(${order.id},'tamamlandi')">✓ Tamamlandı</button>`:""}
         ${order.status!=="iptal-edildi"?`<button class="btn btn-danger" onclick="setStatus(${order.id},'iptal-edildi')">✕ İptal</button>`:""}
@@ -357,13 +388,48 @@ async function setStatus(id,status){
   }catch(e){toast(e.message);}
 }
 
+function toggleNotificationDiscountFields(){
+  const isDiscount=document.getElementById("notificationType")?.value==="discount";
+  document.getElementById("notificationDiscountFields")?.classList.toggle("hidden",!isDiscount);
+}
+
+function revenueSinceMonths(months){
+  const cutoff=new Date(); cutoff.setMonth(cutoff.getMonth()-months);
+  return orders.filter(o=>o.status==="tamamlandi"&&new Date(o.created_at)>=cutoff).reduce((s,o)=>s+Number(o.total||0),0);
+}
+function openRevenueModal(){
+  document.getElementById("revenue1m").textContent=money(revenueSinceMonths(1));
+  document.getElementById("revenue3m").textContent=money(revenueSinceMonths(3));
+  document.getElementById("revenue6m").textContent=money(revenueSinceMonths(6));
+  document.getElementById("revenue12m").textContent=money(revenueSinceMonths(12));
+  document.getElementById("revenueModal").classList.remove("hidden");
+}
+function closeRevenueModal(){document.getElementById("revenueModal").classList.add("hidden");}
+
+function pdfSafe(v){return String(v??"").replace(/[çÇğĞıİöÖşŞüÜ]/g,c=>({"ç":"c","Ç":"C","ğ":"g","Ğ":"G","ı":"i","İ":"I","ö":"o","Ö":"O","ş":"s","Ş":"S","ü":"u","Ü":"U"}[c]||c));}
+function downloadOrderPdf(id){
+  const order=orders.find(o=>String(o.id)===String(id)); if(!order)return;
+  if(!window.jspdf?.jsPDF){toast("PDF kutuphanesi yuklenemedi.");return;}
+  const {jsPDF}=window.jspdf; const doc=new jsPDF(); let y=18;
+  const line=(text,size=11,bold=false)=>{doc.setFontSize(size);doc.setFont("helvetica",bold?"bold":"normal");const lines=doc.splitTextToSize(pdfSafe(text),175);doc.text(lines,18,y);y+=lines.length*(size*0.45)+4;if(y>275){doc.addPage();y=18;}};
+  line(`Durumcu - Siparis #${order.id}`,18,true); line(`Tarih: ${new Date(order.created_at).toLocaleString("tr-TR")}`); line(`Durum: ${order.status}`,11,true); y+=3;
+  line("Siparis Detaylari",14,true); (order.items||[]).forEach(i=>line(`${i.icon||""} ${i.name} x ${i.quantity} - ${money(i.lineTotal)}`));
+  y+=3; const subtotal=Number(order.subtotal||Number(order.total||0)+Number(order.discount_amount||0)); line(`Ara Toplam: ${money(subtotal)}`,11,true);
+  if(Number(order.discount_amount||0)>0){line(`Indirim: -${money(order.discount_amount)}${order.coupon_code?` (Kod: ${order.coupon_code})`:""}`);}
+  line(`Odenecek Toplam: ${money(order.total)}`,13,true); y+=3;
+  line(`Musteri: ${order.name}`); line(`Adres: ${order.address}`); line(`Odeme: ${order.payment}`); if(order.note)line(`Not: ${order.note}`); if(order.google_maps_url)line(`Harita: ${order.google_maps_url}`);
+  doc.save(`siparis-${order.id}.pdf`);
+}
+
 function renderAdminNotifications(){
   const el=document.getElementById("notificationAdminList");
   if(!el)return;
   if(!notifications.length){el.innerHTML='<div class="empty">Henüz bildirim yok.</div>';return;}
   el.innerHTML=notifications.map(n=>{
     const dates=[n.start_date?`Başlangıç: ${n.start_date}`:"",n.end_date?`Bitiş: ${n.end_date}`:""].filter(Boolean).join(" · ");
-    return `<div class="order"><div class="order-head"><div><strong>${escapeHtml(n.title)}</strong><div class="muted">${n.active?"Aktif":"Pasif"}${dates?" · "+escapeHtml(dates):""}</div></div><span class="badge ${n.active?"badge-done":"badge-cancel"}">${n.active?"Yayında":"Pasif"}</span></div><div style="margin-top:10px;white-space:pre-wrap">${escapeHtml(n.message)}</div><div class="actions" style="margin-top:12px"><button class="btn btn-light" onclick="editNotification('${n.id}')">Düzenle</button><button class="btn btn-danger" onclick="deleteNotification('${n.id}')">Sil</button></div></div>`;
+    const isDiscount=n.notification_type==="discount";
+    const discountText=isDiscount ? (n.discount_type==="percent"?`%${Number(n.discount_value||0).toLocaleString("tr-TR")}`:`${money(n.discount_value)}`) : "";
+    return `<div class="order"><div class="order-head"><div><strong>${escapeHtml(n.title)}</strong><div class="muted">${isDiscount?`🎁 İndirim ${escapeHtml(discountText)} · Kod: ${escapeHtml(n.coupon_code||"-")}`:"📢 Bilgilendirme"}${dates?" · "+escapeHtml(dates):""}</div></div><span class="badge ${n.active?"badge-done":"badge-cancel"}">${n.active?"Yayında":"Pasif"}</span></div><div style="margin-top:10px;white-space:pre-wrap">${escapeHtml(n.message)}</div><div class="actions" style="margin-top:12px"><button class="btn btn-light" onclick="editNotification('${n.id}')">Düzenle</button><button class="btn btn-danger" onclick="deleteNotification('${n.id}')">Sil</button></div></div>`;
   }).join("");
 }
 function openNotificationModal(n=null){
@@ -373,6 +439,11 @@ function openNotificationModal(n=null){
   document.getElementById("notificationStart").value=n?.start_date||"";
   document.getElementById("notificationEnd").value=n?.end_date||"";
   document.getElementById("notificationActive").value=String(n?.active!==false);
+  document.getElementById("notificationType").value=n?.notification_type||"info";
+  document.getElementById("notificationDiscountType").value=n?.discount_type||"percent";
+  document.getElementById("notificationDiscountValue").value=n?.discount_value??"";
+  document.getElementById("notificationCouponCode").value=n?.coupon_code||"";
+  toggleNotificationDiscountFields();
   document.getElementById("notificationModalTitle").textContent=n?"Bildirimi Düzenle":"Yeni Bildirim";
   document.getElementById("notificationModal").classList.remove("hidden");
 }
@@ -385,9 +456,14 @@ async function saveNotification(){
     message:document.getElementById("notificationMessage").value.trim(),
     start_date:document.getElementById("notificationStart").value||null,
     end_date:document.getElementById("notificationEnd").value||null,
-    active:document.getElementById("notificationActive").value==="true"
+    active:document.getElementById("notificationActive").value==="true",
+    notification_type:document.getElementById("notificationType").value,
+    discount_type:document.getElementById("notificationType").value==="discount"?document.getElementById("notificationDiscountType").value:null,
+    discount_value:document.getElementById("notificationType").value==="discount"?Number(document.getElementById("notificationDiscountValue").value):null
   };
   if(!payload.title||!payload.message){toast("Başlık ve mesaj zorunludur.");return;}
+  if(payload.notification_type==="discount"&&(!Number.isFinite(payload.discount_value)||payload.discount_value<=0)){toast("İndirim değeri 0'dan büyük olmalıdır.");return;}
+  if(payload.notification_type==="discount"&&payload.discount_type==="percent"&&payload.discount_value>100){toast("Yüzde indirim 100'den büyük olamaz.");return;}
   if(payload.start_date&&payload.end_date&&payload.end_date<payload.start_date){toast("Bitiş tarihi başlangıçtan önce olamaz.");return;}
   try{
     let result;
@@ -415,6 +491,10 @@ const adminRealtimeChannel = supabaseClient
   .on("postgres_changes",{event:"*",schema:"public",table:"orders"},()=>loadAdminOrders())
   .on("postgres_changes",{event:"*",schema:"public",table:"notifications"},()=>loadAdminNotifications())
   .subscribe();
+
+setInterval(()=>{
+  if(!document.hidden&&navigator.onLine){loadAdminOrders();}
+},5000);
 
 supabaseClient.auth.onAuthStateChange((_event,session)=>{
   if(!session){document.getElementById("loginPage").classList.remove("hidden");document.getElementById("app").classList.add("hidden");}

@@ -1,4 +1,4 @@
-const CACHE_NAME = "durumcu-pwa-v6-fixed";
+const CACHE_NAME = "durumcu-pwa-v7-discount-live";
 const STATIC_ASSETS = [
   "./manifest.json",
   "./icon-192.png",
