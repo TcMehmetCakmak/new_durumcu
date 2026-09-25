@@ -20,3 +20,10 @@ Sipariş fiyatı browser'dan alınmaz; create_order PostgreSQL fonksiyonu mevcut
 fiyatlarından tekrar hesaplar ve orders tablosuna kaydeder.
 
 service_role/secret key'i frontend'e koymayın.
+
+YENİ: YORUM + BİLDİRİM + PWA
+- Güncel schema.sql dosyasını Supabase SQL Editor'da tekrar çalıştırın. reviews ve notifications tabloları/policy'leri eklenir.
+- Admin panelinde "Bildirimler" sekmesinden eklenen aktif bildirimler tüm müşterilerde görünür.
+- Müşteri yorumları artık localStorage yerine Supabase reviews tablosunda tutulur; tüm cihazlarda ortaktır.
+- PWA için manifest.json, service-worker.js, icon-192.png ve icon-512.png dosyalarını da repository köküne koyun.
+- PWA kurulumu için site HTTPS üzerinden açılmalıdır (GitHub Pages HTTPS sağlar).

@@ -1682,8 +1682,8 @@
 
             <div class="review-storage-info">
 
-                Şimdilik yorumlar bu cihazın
-                tarayıcısında saklanmaktadır.
+                Yorumlar veritabanında saklanır ve
+                tüm müşteriler tarafından görülebilir.
 
             </div>
 
@@ -1796,97 +1796,16 @@
     const STORAGE_KEY =
         "durumcu_order";
 
+    /* Veritabanından gelen ortak veriler */
+    let reviews = [];
+    let notifications = [];
 
     /*
-     * YORUMLAR İÇİN AYRI LOCAL STORAGE
+     * OKUNAN BİLDİRİMLER yalnızca bu cihaz için tutulur.
+     * Bildirimin kendisi Supabase'de ortaktır.
      */
-
-    const REVIEW_STORAGE_KEY =
-        "durumcu_reviews";
-
-
-    /*
-     * OKUNAN BİLDİRİMLER
-     */
-
     const NOTIFICATION_READ_STORAGE_KEY =
         "durumcu_read_notifications";
-
-
-    /* =========================================
-       ORTAK BİLDİRİMLER
-       
-       BURADAN BİLDİRİM EKLEYEBİLİRSİN
-       
-       active:
-       true  = göster
-       false = gizle
-       
-       startDate / endDate:
-       Bildirimin gösterileceği tarih aralığı.
-       
-       Boş bırakılırsa tarih sınırı olmaz.
-    ========================================= */
-
-    const NOTIFICATIONS = [
-
-        {
-            id: 1,
-
-            title:
-                "Bugüne Özel %15 İndirim 🎁",
-
-            message:
-                "Bugün vereceğiniz tüm dürüm siparişlerinde %15 indirim fırsatı! Kampanyayı kaçırmayın.",
-
-            active: true,
-
-            startDate:
-                "2026-09-23",
-
-            endDate:
-                "2026-09-23"
-        },
-
-
-        {
-            id: 2,
-
-            title:
-                "Yeni Kampanya 🌯",
-
-            message:
-                "2 dürüm alana 1 ayran bizden! Kampanyamızdan yararlanmak için siparişinizi hemen oluşturabilirsiniz.",
-
-            active: true,
-
-            startDate:
-                "",
-
-            endDate:
-                ""
-        },
-
-
-        {
-            id: 3,
-
-            title:
-                "Duyuru 📢",
-
-            message:
-                "Siparişlerinizi daha hızlı hazırlayabilmemiz için adres bilgilerinizi eksiksiz girmenizi rica ederiz.",
-
-            active: true,
-
-            startDate:
-                "",
-
-            endDate:
-                ""
-        }
-
-    ];
 
 
     /* =========================================
@@ -3108,1503 +3027,318 @@ Sipariş No: #${savedOrder.id}`;
             }
         );
 
-
     /* =========================================
-       YORUM SİSTEMİ
-       LOCAL STORAGE
+       YORUM SİSTEMİ - SUPABASE
     ========================================= */
 
+    async function loadReviews() {
+        const { data, error } = await supabaseClient
+            .from("reviews")
+            .select("id,name,rating,comment,created_at")
+            .order("created_at", { ascending: false });
 
-    /*
-     * TÜM YORUMLARI AL
-     */
-
-    function getReviews() {
-
-        const savedReviews =
-            localStorage.getItem(
-                REVIEW_STORAGE_KEY
-            );
-
-
-        if (!savedReviews) {
-
-            return [];
-
+        if (error) {
+            console.error("Yorumlar yüklenemedi:", error);
+            return;
         }
 
-
-        try {
-
-            const reviews =
-                JSON.parse(
-                    savedReviews
-                );
-
-
-            if (
-                !Array.isArray(
-                    reviews
-                )
-            ) {
-
-                return [];
-
-            }
-
-
-            return reviews;
-
-        } catch (error) {
-
-            console.error(
-                "Yorumlar okunamadı:",
-                error
-            );
-
-
-            return [];
-
-        }
-
-    }
-
-
-    /*
-     * YORUMLARI KAYDET
-     */
-
-    function saveReviews(
-        reviews
-    ) {
-
-        localStorage.setItem(
-            REVIEW_STORAGE_KEY,
-            JSON.stringify(
-                reviews
-            )
-        );
-
-    }
-
-
-    /* =========================================
-       YORUM SAYFASINI AÇ
-    ========================================= */
-
-    function openReviewPage() {
-
-        /*
-         * GÜNCEL YORUMLARI GETİR
-         */
-
+        reviews = data || [];
         renderReviews();
-
-
-        /*
-         * DİĞER SAYFALARI GİZLE
-         */
-
-        document.getElementById(
-            "orderPage"
-        ).classList.add(
-            "hidden"
-        );
-
-
-        document.getElementById(
-            "summaryPage"
-        ).classList.add(
-            "hidden"
-        );
-
-
-        document.getElementById(
-            "locationPage"
-        ).classList.add(
-            "hidden"
-        );
-
-
-        document.getElementById(
-            "notificationPage"
-        ).classList.add(
-            "hidden"
-        );
-
-
-        /*
-         * YORUM SAYFASINI AÇ
-         */
-
-        document.getElementById(
-            "reviewPage"
-        ).classList.remove(
-            "hidden"
-        );
-
-
-        window.scrollTo(
-            0,
-            0
-        );
-
     }
 
-
-    /* =========================================
-       YORUM SAYFASINI KAPAT
-    ========================================= */
+    async function openReviewPage() {
+        await loadReviews();
+        document.getElementById("orderPage").classList.add("hidden");
+        document.getElementById("summaryPage").classList.add("hidden");
+        document.getElementById("locationPage").classList.add("hidden");
+        document.getElementById("notificationPage").classList.add("hidden");
+        document.getElementById("reviewPage").classList.remove("hidden");
+        window.scrollTo(0, 0);
+    }
 
     function closeReviewPage() {
-
-        document.getElementById(
-            "reviewPage"
-        ).classList.add(
-            "hidden"
-        );
-
-
-        document.getElementById(
-            "orderPage"
-        ).classList.remove(
-            "hidden"
-        );
-
-
-        window.scrollTo(
-            0,
-            0
-        );
-
+        document.getElementById("reviewPage").classList.add("hidden");
+        document.getElementById("orderPage").classList.remove("hidden");
+        window.scrollTo(0, 0);
     }
 
-
-    /* =========================================
-       YILDIZ SEÇ
-    ========================================= */
-
-    function selectReviewRating(
-        rating
-    ) {
-
-        selectedReviewRating =
-            rating;
-
-
-        const stars =
-            document.querySelectorAll(
-                "#starSelector button"
-            );
-
-
-        stars.forEach(
-            function(star) {
-
-                const starRating =
-                    Number(
-                        star.dataset.rating
-                    );
-
-
-                if (
-                    starRating <=
-                    selectedReviewRating
-                ) {
-
-                    star.classList.add(
-                        "selected"
-                    );
-
-                } else {
-
-                    star.classList.remove(
-                        "selected"
-                    );
-
-                }
-
-            }
-        );
-
+    function selectReviewRating(rating) {
+        selectedReviewRating = rating;
+        document.querySelectorAll("#starSelector button").forEach(function(star) {
+            star.classList.toggle("selected", Number(star.dataset.rating) <= selectedReviewRating);
+        });
     }
 
-
-    /* =========================================
-       YILDIZLARI OLUŞTUR
-    ========================================= */
-
-    function getReviewStars(
-        rating
-    ) {
-
+    function getReviewStars(rating) {
         let stars = "";
-
-
-        for (
-            let i = 1;
-            i <= 5;
-            i++
-        ) {
-
-            if (
-                i <= rating
-            ) {
-
-                stars += "★";
-
-            } else {
-
-                stars += "☆";
-
-            }
-
-        }
-
-
+        for (let i = 1; i <= 5; i++) stars += i <= rating ? "★" : "☆";
         return stars;
-
     }
 
-
-    /* =========================================
-       YORUM GÖNDER
-    ========================================= */
-
-    function submitReview() {
-
-        const name =
-            document.getElementById(
-                "reviewName"
-            ).value.trim();
-
-
-        const comment =
-            document.getElementById(
-                "reviewComment"
-            ).value.trim();
-
-
-        /*
-         * AD KONTROLÜ
-         */
+    async function submitReview() {
+        const name = document.getElementById("reviewName").value.trim();
+        const comment = document.getElementById("reviewComment").value.trim();
 
         if (!name) {
-
-            alert(
-                "Lütfen adınızı girin."
-            );
-
-            document.getElementById(
-                "reviewName"
-            ).focus();
-
+            alert("Lütfen adınızı girin.");
+            document.getElementById("reviewName").focus();
             return;
-
         }
-
-
-        /*
-         * PUAN KONTROLÜ
-         */
-
-        if (
-            selectedReviewRating < 1
-        ) {
-
-            alert(
-                "Lütfen 1 ile 5 arasında yıldız seçin."
-            );
-
+        if (selectedReviewRating < 1 || selectedReviewRating > 5) {
+            alert("Lütfen 1 ile 5 arasında yıldız seçin.");
             return;
-
         }
-
-
-        /*
-         * YORUM KONTROLÜ
-         */
-
         if (!comment) {
-
-            alert(
-                "Lütfen yorumunuzu yazın."
-            );
-
-            document.getElementById(
-                "reviewComment"
-            ).focus();
-
+            alert("Lütfen yorumunuzu yazın.");
+            document.getElementById("reviewComment").focus();
             return;
-
         }
 
-
-        /*
-         * MEVCUT YORUMLAR
-         */
-
-        const reviews =
-            getReviews();
-
-
-        /*
-         * YENİ YORUM
-         */
-
-        const newReview = {
-
-            id:
-                Date.now(),
-
-            name:
-                name.substring(
-                    0,
-                    50
-                ),
-
-            rating:
-                selectedReviewRating,
-
-            comment:
-                comment.substring(
-                    0,
-                    500
-                ),
-
-            createdAt:
-                new Date().toISOString()
-
+        const payload = {
+            name: name.substring(0, 50),
+            rating: selectedReviewRating,
+            comment: comment.substring(0, 500)
         };
 
+        const { error } = await supabaseClient.from("reviews").insert(payload);
+        if (error) {
+            console.error(error);
+            alert("Yorum kaydedilemedi: " + error.message);
+            return;
+        }
 
-        /*
-         * EN YENİ YORUM EN ÜSTTE
-         */
-
-        reviews.unshift(
-            newReview
-        );
-
-
-        /*
-         * KAYDET
-         */
-
-        saveReviews(
-            reviews
-        );
-
-
-        /*
-         * FORMU TEMİZLE
-         */
-
-        document.getElementById(
-            "reviewName"
-        ).value =
-            "";
-
-
-        document.getElementById(
-            "reviewComment"
-        ).value =
-            "";
-
-
-        selectedReviewRating =
-            0;
-
-
-        document
-            .querySelectorAll(
-                "#starSelector button"
-            )
-            .forEach(
-                function(star) {
-
-                    star.classList.remove(
-                        "selected"
-                    );
-
-                }
-            );
-
-
-        /*
-         * YORUMLARI YENİLE
-         */
-
-        renderReviews();
-
-
-        /*
-         * BİLDİRİM
-         */
-
-        alert(
-            "Yorumunuz kaydedildi. Teşekkür ederiz!"
-        );
-
+        document.getElementById("reviewName").value = "";
+        document.getElementById("reviewComment").value = "";
+        selectedReviewRating = 0;
+        document.querySelectorAll("#starSelector button").forEach(star => star.classList.remove("selected"));
+        await loadReviews();
+        alert("Yorumunuz kaydedildi. Teşekkür ederiz!");
     }
-
-
-    /* =========================================
-       YORUMLARI GÖSTER
-    ========================================= */
 
     function renderReviews() {
+        const list = document.getElementById("reviewList");
+        const count = reviews.length;
+        document.getElementById("reviewCount").textContent = count;
+        document.getElementById("reviewCountText").textContent = count ? count + " yorum" : "Henüz yorum yok.";
 
-        const reviews =
-            getReviews();
+        const average = count
+            ? reviews.reduce((sum, review) => sum + Number(review.rating || 0), 0) / count
+            : 0;
 
-
-        const list =
-            document.getElementById(
-                "reviewList"
-            );
-
-
-        /*
-         * YORUM SAYISINI GÜNCELLE
-         */
-
-        document.getElementById(
-            "reviewCount"
-        ).textContent =
-            reviews.length;
-
-
-        /*
-         * YORUM SAYISI
-         */
-
-        if (
-            reviews.length === 0
-        ) {
-
-            document.getElementById(
-                "reviewCountText"
-            ).textContent =
-                "Henüz yorum yok.";
-
-        } else {
-
-            document.getElementById(
-                "reviewCountText"
-            ).textContent =
-
-                reviews.length +
-                " yorum";
-
-        }
-
-
-        /*
-         * ORTALAMA PUAN
-         */
-
-        let average =
-            0;
-
-
-        if (
-            reviews.length > 0
-        ) {
-
-            const total =
-                reviews.reduce(
-                    function(
-                        sum,
-                        review
-                    ) {
-
-                        return (
-                            sum +
-                            Number(
-                                review.rating
-                            )
-                        );
-
-                    },
-                    0
-                );
-
-
-            average =
-                total /
-                reviews.length;
-
-        }
-
-
-        document.getElementById(
-            "reviewAverage"
-        ).textContent =
-            average.toFixed(1);
-
-
-        document.getElementById(
-            "reviewAverageStars"
-        ).textContent =
-
-            reviews.length > 0
-
-                ? getReviewStars(
-                    Math.round(
-                        average
-                    )
-                )
-
-                : "☆☆☆☆☆";
-
-
-        /*
-         * LİSTEYİ TEMİZLE
-         */
-
+        document.getElementById("reviewAverage").textContent = average.toFixed(1);
+        document.getElementById("reviewAverageStars").textContent = count ? getReviewStars(Math.round(average)) : "☆☆☆☆☆";
         list.innerHTML = "";
 
-
-        /*
-         * YORUM YOKSA
-         */
-
-        if (
-            reviews.length === 0
-        ) {
-
-            list.innerHTML = `
-
-                <div class="no-reviews">
-
-                    Henüz müşteri yorumu bulunmuyor.
-
-                    <br><br>
-
-                    İlk yorumu siz yapın! ⭐
-
-                </div>
-
-            `;
-
+        if (!count) {
+            list.innerHTML = '<div class="no-reviews">Henüz müşteri yorumu bulunmuyor.<br><br>İlk yorumu siz yapın! ⭐</div>';
             return;
-
         }
 
+        reviews.forEach(function(review) {
+            const item = document.createElement("div");
+            item.className = "review-item";
 
-        /*
-         * YORUMLARI OLUŞTUR
-         */
+            const header = document.createElement("div");
+            header.className = "review-item-header";
 
-        reviews.forEach(
-            function(review) {
+            const name = document.createElement("div");
+            name.className = "reviewer-name";
+            name.textContent = review.name;
 
-                const item =
-                    document.createElement(
-                        "div"
-                    );
+            const stars = document.createElement("div");
+            stars.className = "review-item-stars";
+            stars.textContent = getReviewStars(Number(review.rating));
 
+            const comment = document.createElement("div");
+            comment.className = "review-comment";
+            comment.textContent = review.comment;
 
-                item.className =
-                    "review-item";
-
-
-                /*
-                 * ÜST KISIM
-                 */
-
-                const header =
-                    document.createElement(
-                        "div"
-                    );
-
-
-                header.className =
-                    "review-item-header";
-
-
-                /*
-                 * İSİM
-                 */
-
-                const name =
-                    document.createElement(
-                        "div"
-                    );
-
-
-                name.className =
-                    "reviewer-name";
-
-
-                name.textContent =
-                    review.name;
-
-
-                /*
-                 * YILDIZ
-                 */
-
-                const stars =
-                    document.createElement(
-                        "div"
-                    );
-
-
-                stars.className =
-                    "review-item-stars";
-
-
-                stars.textContent =
-                    getReviewStars(
-                        Number(
-                            review.rating
-                        )
-                    );
-
-
-                /*
-                 * YORUM
-                 */
-
-                const comment =
-                    document.createElement(
-                        "div"
-                    );
-
-
-                comment.className =
-                    "review-comment";
-
-
-                comment.textContent =
-                    review.comment;
-
-
-                /*
-                 * BİRLEŞTİR
-                 */
-
-                header.appendChild(
-                    name
-                );
-
-
-                header.appendChild(
-                    stars
-                );
-
-
-                item.appendChild(
-                    header
-                );
-
-
-                item.appendChild(
-                    comment
-                );
-
-
-                list.appendChild(
-                    item
-                );
-
-            }
-        );
-
+            header.appendChild(name);
+            header.appendChild(stars);
+            item.appendChild(header);
+            item.appendChild(comment);
+            list.appendChild(item);
+        });
     }
-
 
     /* =========================================
-       BİLDİRİM SİSTEMİ
+       BİLDİRİM SİSTEMİ - SUPABASE
     ========================================= */
 
+    async function loadNotifications() {
+        const today = new Date().toISOString().slice(0, 10);
+        const { data, error } = await supabaseClient
+            .from("notifications")
+            .select("id,title,message,active,start_date,end_date,created_at")
+            .eq("active", true)
+            .order("created_at", { ascending: false });
 
-    /*
-     * BUGÜNÜ YYYY-MM-DD OLARAK AL
-     */
+        if (error) {
+            console.error("Bildirimler yüklenemedi:", error);
+            return;
+        }
 
-    function getTodayDate() {
-
-        const now =
-            new Date();
-
-        const year =
-            now.getFullYear();
-
-        const month =
-            String(
-                now.getMonth() + 1
-            ).padStart(
-                2,
-                "0"
-            );
-
-        const day =
-            String(
-                now.getDate()
-            ).padStart(
-                2,
-                "0"
-            );
-
-        return (
-            year +
-            "-" +
-            month +
-            "-" +
-            day
+        notifications = (data || []).filter(n =>
+            (!n.start_date || n.start_date <= today) &&
+            (!n.end_date || n.end_date >= today)
         );
-
+        updateNotificationCount();
+        if (!document.getElementById("notificationPage").classList.contains("hidden")) {
+            renderNotifications();
+        }
     }
-
-
-    /*
-     * BİLDİRİM AKTİF Mİ?
-     */
-
-    function isNotificationActive(
-        notification
-    ) {
-
-        if (
-            notification.active !== true
-        ) {
-
-            return false;
-
-        }
-
-
-        const today =
-            getTodayDate();
-
-
-        if (
-            notification.startDate &&
-            today <
-            notification.startDate
-        ) {
-
-            return false;
-
-        }
-
-
-        if (
-            notification.endDate &&
-            today >
-            notification.endDate
-        ) {
-
-            return false;
-
-        }
-
-
-        return true;
-
-    }
-
-
-    /*
-     * AKTİF BİLDİRİMLERİ AL
-     */
 
     function getActiveNotifications() {
-
-        return NOTIFICATIONS.filter(
-            function(notification) {
-
-                return isNotificationActive(
-                    notification
-                );
-
-            }
-        );
-
+        return notifications;
     }
-
-
-    /*
-     * OKUNAN BİLDİRİMLERİ AL
-     */
 
     function getReadNotifications() {
-
-        const saved =
-            localStorage.getItem(
-                NOTIFICATION_READ_STORAGE_KEY
-            );
-
-
-        if (!saved) {
-
-            return [];
-
-        }
-
-
+        const saved = localStorage.getItem(NOTIFICATION_READ_STORAGE_KEY);
+        if (!saved) return [];
         try {
-
-            const data =
-                JSON.parse(
-                    saved
-                );
-
-
-            if (
-                !Array.isArray(data)
-            ) {
-
-                return [];
-
-            }
-
-
-            return data;
-
+            const data = JSON.parse(saved);
+            return Array.isArray(data) ? data.map(String) : [];
         } catch (error) {
-
-            console.error(
-                "Okunan bildirimler okunamadı:",
-                error
-            );
-
-
+            console.error("Okunan bildirimler okunamadı:", error);
             return [];
-
         }
-
     }
 
-
-    /*
-     * OKUNAN BİLDİRİMLERİ KAYDET
-     */
-
-    function saveReadNotifications(
-        ids
-    ) {
-
-        localStorage.setItem(
-            NOTIFICATION_READ_STORAGE_KEY,
-            JSON.stringify(
-                ids
-            )
-        );
-
+    function saveReadNotifications(ids) {
+        localStorage.setItem(NOTIFICATION_READ_STORAGE_KEY, JSON.stringify(ids.map(String)));
     }
 
-
-    /*
-     * BİLDİRİMİ OKUNDU OLARAK İŞARETLE
-     */
-
-    function markNotificationAsRead(
-        id
-    ) {
-
-        const readIds =
-            getReadNotifications();
-
-
-        if (
-            !readIds.includes(id)
-        ) {
-
-            readIds.push(id);
-
-            saveReadNotifications(
-                readIds
-            );
-
+    function markNotificationAsRead(id) {
+        const sid = String(id);
+        const readIds = getReadNotifications();
+        if (!readIds.includes(sid)) {
+            readIds.push(sid);
+            saveReadNotifications(readIds);
         }
-
-
         updateNotificationCount();
-
     }
-
-
-    /*
-     * TÜM BİLDİRİMLERİ OKUNDU YAP
-     */
 
     function markAllNotificationsAsRead() {
-
-        const notifications =
-            getActiveNotifications();
-
-
-        const ids =
-            notifications.map(
-                function(notification) {
-
-                    return notification.id;
-
-                }
-            );
-
-
-        saveReadNotifications(
-            ids
-        );
-
-
+        saveReadNotifications(getActiveNotifications().map(n => String(n.id)));
         updateNotificationCount();
-
-
         renderNotifications();
-
     }
-
-
-    /*
-     * OKUNMAMIŞ BİLDİRİM SAYISI
-     */
 
     function getUnreadNotificationCount() {
-
-        const notifications =
-            getActiveNotifications();
-
-
-        const readIds =
-            getReadNotifications();
-
-
-        return notifications.filter(
-            function(notification) {
-
-                return !readIds.includes(
-                    notification.id
-                );
-
-            }
-        ).length;
-
+        const readIds = getReadNotifications();
+        return getActiveNotifications().filter(n => !readIds.includes(String(n.id))).length;
     }
-
-
-    /*
-     * BİLDİRİM ROZETİNİ GÜNCELLE
-     */
 
     function updateNotificationCount() {
-
-        const count =
-            getUnreadNotificationCount();
-
-
-        const badge =
-            document.getElementById(
-                "notificationCount"
-            );
-
-
-        if (!badge) {
-
-            return;
-
-        }
-
-
-        badge.textContent =
-            count > 99
-                ? "99+"
-                : count;
-
-
-        /*
-         * HİÇ BİLDİRİM YOKSA ROZETİ GİZLE
-         */
-
-        if (count === 0) {
-
-            badge.classList.add(
-                "hidden"
-            );
-
-        } else {
-
-            badge.classList.remove(
-                "hidden"
-            );
-
-        }
-
+        const count = getUnreadNotificationCount();
+        const badge = document.getElementById("notificationCount");
+        if (!badge) return;
+        badge.textContent = count > 99 ? "99+" : count;
+        badge.classList.toggle("hidden", count === 0);
     }
 
-
-    /*
-     * TARİHİ GÖSTER
-     */
-
-    function formatNotificationDate(
-        date
-    ) {
-
-        if (!date) {
-
-            return "";
-
-        }
-
-
-        const parts =
-            date.split("-");
-
-
-        if (
-            parts.length !== 3
-        ) {
-
-            return date;
-
-        }
-
-
-        return (
-            parts[2] +
-            "." +
-            parts[1] +
-            "." +
-            parts[0]
-        );
-
+    function formatNotificationDate(date) {
+        if (!date) return "";
+        const parts = date.split("-");
+        return parts.length === 3 ? `${parts[2]}.${parts[1]}.${parts[0]}` : date;
     }
 
-
-    /* =========================================
-       BİLDİRİMLER SAYFASINI AÇ
-    ========================================= */
-
-    function openNotificationPage() {
-
-        /*
-         * BİLDİRİMLERİ GÖSTER
-         */
-
+    async function openNotificationPage() {
+        await loadNotifications();
+        document.getElementById("orderPage").classList.add("hidden");
+        document.getElementById("summaryPage").classList.add("hidden");
+        document.getElementById("locationPage").classList.add("hidden");
+        document.getElementById("reviewPage").classList.add("hidden");
+        document.getElementById("notificationPage").classList.remove("hidden");
         renderNotifications();
-
-
-        /*
-         * DİĞER SAYFALARI GİZLE
-         */
-
-        document.getElementById(
-            "orderPage"
-        ).classList.add(
-            "hidden"
-        );
-
-
-        document.getElementById(
-            "summaryPage"
-        ).classList.add(
-            "hidden"
-        );
-
-
-        document.getElementById(
-            "locationPage"
-        ).classList.add(
-            "hidden"
-        );
-
-
-        document.getElementById(
-            "reviewPage"
-        ).classList.add(
-            "hidden"
-        );
-
-
-        /*
-         * BİLDİRİMLERİ AÇ
-         */
-
-        document.getElementById(
-            "notificationPage"
-        ).classList.remove(
-            "hidden"
-        );
-
-
-        window.scrollTo(
-            0,
-            0
-        );
-
+        window.scrollTo(0, 0);
     }
-
-
-    /* =========================================
-       BİLDİRİMLER SAYFASINI KAPAT
-    ========================================= */
 
     function closeNotificationPage() {
-
-        document.getElementById(
-            "notificationPage"
-        ).classList.add(
-            "hidden"
-        );
-
-
-        document.getElementById(
-            "orderPage"
-        ).classList.remove(
-            "hidden"
-        );
-
-
-        window.scrollTo(
-            0,
-            0
-        );
-
+        document.getElementById("notificationPage").classList.add("hidden");
+        document.getElementById("orderPage").classList.remove("hidden");
+        window.scrollTo(0, 0);
     }
-
-
-    /* =========================================
-       BİLDİRİMLERİ GÖSTER
-    ========================================= */
 
     function renderNotifications() {
+        const list = document.getElementById("notificationList");
+        if (!list) return;
 
-        const list =
-            document.getElementById(
-                "notificationList"
-            );
-
-
-        if (!list) {
-
-            return;
-
-        }
-
-
-        const notifications =
-            getActiveNotifications();
-
-
-        const readIds =
-            getReadNotifications();
-
-
-        /*
-         * ROZETİ GÜNCELLE
-         */
-
+        const active = getActiveNotifications();
+        const readIds = getReadNotifications();
         updateNotificationCount();
-
-
-        /*
-         * LİSTEYİ TEMİZLE
-         */
-
         list.innerHTML = "";
 
-
-        /*
-         * BİLDİRİM YOKSA
-         */
-
-        if (
-            notifications.length === 0
-        ) {
-
-            list.innerHTML = `
-
-                <div class="no-notifications">
-
-                    🔔 Şu anda aktif bir bildirim
-                    bulunmuyor.
-
-                </div>
-
-            `;
-
+        if (!active.length) {
+            list.innerHTML = '<div class="no-notifications">🔔 Şu anda aktif bir bildirim bulunmuyor.</div>';
             return;
-
         }
 
-
-        /*
-         * TÜMÜNÜ OKU BUTONU
-         */
-
-        const unreadCount =
-            notifications.filter(
-                function(notification) {
-
-                    return !readIds.includes(
-                        notification.id
-                    );
-
-                }
-            ).length;
-
-
-        if (
-            unreadCount > 0
-        ) {
-
-            const readAllButton =
-                document.createElement(
-                    "button"
-                );
-
-
-            readAllButton.type =
-                "button";
-
-
-            readAllButton.className =
-                "main-button back-button";
-
-
-            readAllButton.style.marginTop =
-                "0";
-
-
-            readAllButton.style.marginBottom =
-                "18px";
-
-
-            readAllButton.textContent =
-                "✓ Tüm Bildirimleri Okundu İşaretle";
-
-
-            readAllButton.onclick =
-                function() {
-
-                    markAllNotificationsAsRead();
-
-                };
-
-
-            list.appendChild(
-                readAllButton
-            );
-
+        const unreadCount = active.filter(n => !readIds.includes(String(n.id))).length;
+        if (unreadCount > 0) {
+            const readAllButton = document.createElement("button");
+            readAllButton.type = "button";
+            readAllButton.className = "main-button back-button";
+            readAllButton.style.marginTop = "0";
+            readAllButton.style.marginBottom = "18px";
+            readAllButton.textContent = "✓ Tüm Bildirimleri Okundu İşaretle";
+            readAllButton.onclick = markAllNotificationsAsRead;
+            list.appendChild(readAllButton);
         }
 
-
-        /*
-         * BİLDİRİMLERİ OLUŞTUR
-         */
-
-        notifications.forEach(
-            function(notification) {
-
-                const isRead =
-                    readIds.includes(
-                        notification.id
-                    );
-
-
-                const item =
-                    document.createElement(
-                        "div"
-                    );
-
-
-                item.className =
-                    "notification-item " +
-                    (
-                        isRead
-                            ? "read"
-                            : "unread"
-                    );
-
-
-                /*
-                 * ÜST KISIM
-                 */
-
-                const header =
-                    document.createElement(
-                        "div"
-                    );
-
-
-                header.className =
-                    "notification-item-header";
-
-
-                /*
-                 * BAŞLIK
-                 */
-
-                const title =
-                    document.createElement(
-                        "div"
-                    );
-
-
-                title.className =
-                    "notification-title";
-
-
-                title.textContent =
-                    notification.title;
-
-
-                header.appendChild(
-                    title
-                );
-
-
-                /*
-                 * YENİ ROZETİ
-                 */
-
-                if (!isRead) {
-
-                    const newBadge =
-                        document.createElement(
-                            "span"
-                        );
-
-
-                    newBadge.className =
-                        "notification-new";
-
-
-                    newBadge.textContent =
-                        "YENİ";
-
-
-                    header.appendChild(
-                        newBadge
-                    );
-
-                }
-
-
-                /*
-                 * MESAJ
-                 */
-
-                const message =
-                    document.createElement(
-                        "div"
-                    );
-
-
-                message.className =
-                    "notification-message";
-
-
-                message.textContent =
-                    notification.message;
-
-
-                /*
-                 * TARİH
-                 */
-
-                const date =
-                    document.createElement(
-                        "div"
-                    );
-
-
-                date.className =
-                    "notification-date";
-
-
-                if (
-                    notification.startDate
-                ) {
-
-                    date.textContent =
-                        "📅 " +
-                        formatNotificationDate(
-                            notification.startDate
-                        );
-
-                }
-
-
-                /*
-                 * BİRLEŞTİR
-                 */
-
-                item.appendChild(
-                    header
-                );
-
-
-                item.appendChild(
-                    message
-                );
-
-
-                if (
-                    notification.startDate
-                ) {
-
-                    item.appendChild(
-                        date
-                    );
-
-                }
-
-
-                /*
-                 * TIKLANINCA OKUNDU
-                 */
-
-                item.addEventListener(
-                    "click",
-                    function() {
-
-                        markNotificationAsRead(
-                            notification.id
-                        );
-
-
-                        item.classList.remove(
-                            "unread"
-                        );
-
-
-                        item.classList.add(
-                            "read"
-                        );
-
-
-                        const newBadge =
-                            item.querySelector(
-                                ".notification-new"
-                            );
-
-
-                        if (newBadge) {
-
-                            newBadge.remove();
-
-                        }
-
-                    }
-                );
-
-
-                list.appendChild(
-                    item
-                );
-
+        active.forEach(function(notification) {
+            const isRead = readIds.includes(String(notification.id));
+            const item = document.createElement("div");
+            item.className = "notification-item " + (isRead ? "read" : "unread");
+
+            const header = document.createElement("div");
+            header.className = "notification-item-header";
+
+            const title = document.createElement("div");
+            title.className = "notification-title";
+            title.textContent = notification.title;
+            header.appendChild(title);
+
+            if (!isRead) {
+                const newBadge = document.createElement("span");
+                newBadge.className = "notification-new";
+                newBadge.textContent = "YENİ";
+                header.appendChild(newBadge);
             }
-        );
 
+            const message = document.createElement("div");
+            message.className = "notification-message";
+            message.textContent = notification.message;
+
+            const date = document.createElement("div");
+            date.className = "notification-date";
+            const shownDate = notification.start_date || (notification.created_at || "").slice(0, 10);
+            if (shownDate) date.textContent = "📅 " + formatNotificationDate(shownDate);
+
+            item.appendChild(header);
+            item.appendChild(message);
+            if (shownDate) item.appendChild(date);
+
+            item.addEventListener("click", function() {
+                markNotificationAsRead(notification.id);
+                item.classList.remove("unread");
+                item.classList.add("read");
+                const badge = item.querySelector(".notification-new");
+                if (badge) badge.remove();
+            });
+            list.appendChild(item);
+        });
     }
 
+
+
+
+    /* Supabase Realtime: admin bildirimi veya yeni yorum geldiğinde yenile */
+    supabaseClient
+        .channel("public-updates")
+        .on("postgres_changes", { event: "*", schema: "public", table: "notifications" }, () => loadNotifications())
+        .on("postgres_changes", { event: "INSERT", schema: "public", table: "reviews" }, () => loadReviews())
+        .subscribe();
 
     /* =========================================
        SAYFA AÇILINCA
@@ -4614,18 +3348,9 @@ Sipariş No: #${savedOrder.id}`;
     loadProducts();
 
 
-    /*
-     * YORUM SAYISINI BAŞLANGIÇTA GÖSTER
-     */
-
-    renderReviews();
-
-
-    /*
-     * BİLDİRİM SAYISINI BAŞLANGIÇTA GÖSTER
-     */
-
-    updateNotificationCount();
+    /* Ortak yorum ve bildirimleri veritabanından yükle */
+    loadReviews();
+    loadNotifications();
 
 
     /* =========================================
@@ -4641,7 +3366,8 @@ Sipariş No: #${savedOrder.id}`;
                 !document.hidden
             ) {
 
-                updateNotificationCount();
+                loadNotifications();
+                loadReviews();
 
             }
 

@@ -77,6 +77,7 @@ label{display:block;margin:12px 0 6px;font-weight:bold}
   <div class="tabs">
     <button class="tab active" onclick="showTab('products',this)">🍽️ Ürünler</button>
     <button class="tab" onclick="showTab('orders',this)">🧾 Siparişler</button>
+    <button class="tab" onclick="showTab('notifications',this)">🔔 Bildirimler</button>
   </div>
 
   <section id="productsTab">
@@ -110,6 +111,16 @@ label{display:block;margin:12px 0 6px;font-weight:bold}
       <div id="ordersList"></div>
     </div>
   </section>
+
+  <section id="notificationsTab" class="hidden">
+    <div class="card">
+      <div class="header">
+        <div><h2>Bildirim Yönetimi</h2><div class="muted">Eklenen aktif bildirimler tüm müşterilerin index.html sayfasında görünür.</div></div>
+        <button class="btn btn-primary" onclick="openNotificationModal()">+ Yeni Bildirim</button>
+      </div>
+      <div id="notificationAdminList"></div>
+    </div>
+  </section>
 </div>
 
 <div id="productModal" class="modal hidden">
@@ -127,6 +138,25 @@ label{display:block;margin:12px 0 6px;font-weight:bold}
   </div>
 </div>
 
+
+<div id="notificationModal" class="modal hidden">
+  <div class="modal-card">
+    <h2 id="notificationModalTitle">Yeni Bildirim</h2>
+    <input id="notificationId" type="hidden">
+    <label>Başlık</label><input id="notificationTitle" maxlength="120" placeholder="Örn. Hafta sonu kampanyası">
+    <label>Mesaj</label><textarea id="notificationMessage" maxlength="1000" style="width:100%;min-height:110px;padding:12px;border:1px solid #ddd;border-radius:10px" placeholder="Bildirim mesajı..."></textarea>
+    <div class="form-grid">
+      <div><label>Başlangıç tarihi</label><input id="notificationStart" type="date"></div>
+      <div><label>Bitiş tarihi</label><input id="notificationEnd" type="date"></div>
+      <div><label>Durum</label><select id="notificationActive"><option value="true">Aktif</option><option value="false">Pasif</option></select></div>
+    </div>
+    <div class="actions" style="justify-content:flex-end;margin-top:18px">
+      <button class="btn btn-light" onclick="closeNotificationModal()">Vazgeç</button>
+      <button class="btn btn-primary" onclick="saveNotification()">Kaydet</button>
+    </div>
+  </div>
+</div>
+
 <div id="toast" class="toast"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -139,6 +169,7 @@ const supabaseClient = window.supabase.createClient(
 
 let products = [];
 let orders = [];
+let notifications = [];
 
 function money(n) {
   return Number(n || 0).toLocaleString("tr-TR", {minimumFractionDigits:0, maximumFractionDigits:2}) + " TL";
@@ -179,13 +210,14 @@ function showApp(){
 }
 async function loadAll(){
   try{
-    const [p,o]=await Promise.all([
+    const [p,o,n]=await Promise.all([
       supabaseClient.from("products").select("id,name,icon,price,active,created_at").order("created_at",{ascending:true}),
-      supabaseClient.from("orders").select("*").order("created_at",{ascending:false})
+      supabaseClient.from("orders").select("*").order("created_at",{ascending:false}),
+      supabaseClient.from("notifications").select("*").order("created_at",{ascending:false})
     ]);
-    if(p.error)throw p.error;if(o.error)throw o.error;
-    products=p.data||[];orders=o.data||[];
-    renderProducts();renderOrders();loadDashboard();
+    if(p.error)throw p.error;if(o.error)throw o.error;if(n.error)throw n.error;
+    products=p.data||[];orders=o.data||[];notifications=n.data||[];
+    renderProducts();renderOrders();renderAdminNotifications();loadDashboard();
   }catch(e){toast(e.message);}
 }
 function loadDashboard(){
@@ -197,6 +229,7 @@ function loadDashboard(){
 function showTab(name,button){
   document.getElementById("productsTab").classList.toggle("hidden",name!=="products");
   document.getElementById("ordersTab").classList.toggle("hidden",name!=="orders");
+  document.getElementById("notificationsTab").classList.toggle("hidden",name!=="notifications");
   document.querySelectorAll(".tab").forEach(x=>x.classList.remove("active"));button.classList.add("active");
 }
 function renderProducts(){
@@ -286,6 +319,57 @@ async function setStatus(id,status){
     if(error)throw error;orders=orders.map(o=>o.id===id?data:o);renderOrders();loadDashboard();toast("Sipariş durumu güncellendi.");
   }catch(e){toast(e.message);}
 }
+
+function renderAdminNotifications(){
+  const el=document.getElementById("notificationAdminList");
+  if(!el)return;
+  if(!notifications.length){el.innerHTML='<div class="empty">Henüz bildirim yok.</div>';return;}
+  el.innerHTML=notifications.map(n=>{
+    const dates=[n.start_date?`Başlangıç: ${n.start_date}`:"",n.end_date?`Bitiş: ${n.end_date}`:""].filter(Boolean).join(" · ");
+    return `<div class="order"><div class="order-head"><div><strong>${escapeHtml(n.title)}</strong><div class="muted">${n.active?"Aktif":"Pasif"}${dates?" · "+escapeHtml(dates):""}</div></div><span class="badge ${n.active?"badge-done":"badge-cancel"}">${n.active?"Yayında":"Pasif"}</span></div><div style="margin-top:10px;white-space:pre-wrap">${escapeHtml(n.message)}</div><div class="actions" style="margin-top:12px"><button class="btn btn-light" onclick="editNotification('${n.id}')">Düzenle</button><button class="btn btn-danger" onclick="deleteNotification('${n.id}')">Sil</button></div></div>`;
+  }).join("");
+}
+function openNotificationModal(n=null){
+  document.getElementById("notificationId").value=n?.id||"";
+  document.getElementById("notificationTitle").value=n?.title||"";
+  document.getElementById("notificationMessage").value=n?.message||"";
+  document.getElementById("notificationStart").value=n?.start_date||"";
+  document.getElementById("notificationEnd").value=n?.end_date||"";
+  document.getElementById("notificationActive").value=String(n?.active!==false);
+  document.getElementById("notificationModalTitle").textContent=n?"Bildirimi Düzenle":"Yeni Bildirim";
+  document.getElementById("notificationModal").classList.remove("hidden");
+}
+function closeNotificationModal(){document.getElementById("notificationModal").classList.add("hidden");}
+function editNotification(id){openNotificationModal(notifications.find(n=>String(n.id)===String(id)));}
+async function saveNotification(){
+  const id=document.getElementById("notificationId").value;
+  const payload={
+    title:document.getElementById("notificationTitle").value.trim(),
+    message:document.getElementById("notificationMessage").value.trim(),
+    start_date:document.getElementById("notificationStart").value||null,
+    end_date:document.getElementById("notificationEnd").value||null,
+    active:document.getElementById("notificationActive").value==="true"
+  };
+  if(!payload.title||!payload.message){toast("Başlık ve mesaj zorunludur.");return;}
+  if(payload.start_date&&payload.end_date&&payload.end_date<payload.start_date){toast("Bitiş tarihi başlangıçtan önce olamaz.");return;}
+  try{
+    let result;
+    if(id) result=await supabaseClient.from("notifications").update(payload).eq("id",id).select("*").single();
+    else result=await supabaseClient.from("notifications").insert(payload).select("*").single();
+    if(result.error)throw result.error;
+    if(id) notifications=notifications.map(n=>String(n.id)===String(id)?result.data:n); else notifications.unshift(result.data);
+    renderAdminNotifications();closeNotificationModal();toast("Bildirim kaydedildi ve müşteri sayfasına yansıtıldı.");
+  }catch(e){toast(e.message);}
+}
+async function deleteNotification(id){
+  if(!confirm("Bu bildirim silinsin mi?"))return;
+  try{
+    const {error}=await supabaseClient.from("notifications").delete().eq("id",id);
+    if(error)throw error;
+    notifications=notifications.filter(n=>String(n.id)!==String(id));renderAdminNotifications();toast("Bildirim silindi.");
+  }catch(e){toast(e.message);}
+}
+
 function escapeHtml(v){const d=document.createElement("div");d.textContent=v??"";return d.innerHTML;}
 function escapeAttr(v){return String(v??"").replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
 supabaseClient.auth.onAuthStateChange((_event,session)=>{
