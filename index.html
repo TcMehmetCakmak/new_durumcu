@@ -3545,7 +3545,8 @@ Sipariş No: #${savedOrder.id}`;
 
             item.appendChild(header);
             item.appendChild(message);
-            if (notification.notification_type === "discount" && notification.coupon_code) {
+            const discountStarted = !notification.start_date || new Date(notification.start_date + "T00:00:00") <= new Date(new Date().setHours(0,0,0,0));
+            if (notification.notification_type === "discount" && notification.coupon_code && discountStarted) {
                 const promo = document.createElement("div");
                 promo.className = "notification-discount";
                 const label = notification.discount_type === "percent"
