@@ -3239,10 +3239,19 @@ Ara Toplam: ${savedSubtotal.toLocaleString("tr-TR")} TL
         message += `Toplam: ${savedTotal.toLocaleString("tr-TR")} TL
 Adresim: ${order.address}
 `;
-        if (order.googleMapsUrl) message += `
+        if (order.googleMapsUrl) {
+            const qrUrl =
+                "https://api.qrserver.com/v1/create-qr-code/?size=600x600&data=" +
+                encodeURIComponent(order.googleMapsUrl);
+            message += `
 📍 Google Maps Konumu:
 ${order.googleMapsUrl}
 `;
+            message += `
+📱 Konum QR Kodu:
+${qrUrl}
+`;
+        }
         message += `
 Ödeme: ${order.payment}
 `;
