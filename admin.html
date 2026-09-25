@@ -157,9 +157,9 @@ label{display:block;margin:12px 0 6px;font-weight:bold}
       <div class="form-grid">
         <div><label>İndirim tipi</label><select id="notificationDiscountType"><option value="percent">Yüzde (%)</option><option value="fixed">Sabit TL</option></select></div>
         <div><label>İndirim değeri</label><input id="notificationDiscountValue" type="number" min="0.01" step="0.01" placeholder="15"></div>
-        <div><label>İndirim kodu</label><input id="notificationCouponCode" readonly placeholder="Kaydedince otomatik oluşur"></div>
+        <div><label>İndirim kodu</label><input id="notificationCouponCode" disabled placeholder="Kaydedince otomatik oluşur" title="İndirim kodu otomatik üretilir ve sonradan değiştirilemez"></div>
       </div>
-      <div class="muted">İndirim kodu otomatik üretilir ve müşterinin bildiriminde gösterilir.</div>
+      <div class="muted">İndirim kodu otomatik üretilir, müşterinin bildiriminde gösterilir ve sonradan değiştirilemez.</div>
     </div>
     <div class="form-grid">
       <div><label>Başlangıç tarihi</label><input id="notificationStart" type="date"></div>
