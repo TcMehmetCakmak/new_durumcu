@@ -1070,6 +1070,17 @@
 
         }
 
+
+        .verify-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+        .verify-actions .main-button{margin-top:0}
+        .direct-order-button{background:#2e7d32}
+        .verify-modal{position:fixed;inset:0;background:#0009;display:flex;align-items:center;justify-content:center;padding:18px;z-index:9999}
+        .verify-modal-card{background:#fff;border-radius:18px;padding:22px;width:100%;max-width:460px;box-shadow:0 12px 40px #0003}
+        .verify-modal-card h2{margin-top:0}
+        .verify-row{display:flex;gap:8px;align-items:center}
+        .verify-row input{margin:0}
+        .verify-status{min-height:20px;font-size:13px;margin-top:8px;color:#666}
+        @media(max-width:420px){.verify-actions{grid-template-columns:1fr}}
     </style>
 
 </head>
@@ -1428,14 +1439,14 @@
         ========================================= -->
 
         <div class="card">
-
-            <button
-                type="button"
-                class="main-button whatsapp-button"
-                onclick="sendToWhatsApp()"
-            >
-                ✓ Onayla ve WhatsApp'tan Gönder
-            </button>
+            <div class="verify-actions">
+                <button type="button" class="main-button direct-order-button" onclick="openDirectOrderVerification()">
+                    ✓ Onayla
+                </button>
+                <button type="button" class="main-button whatsapp-button" onclick="sendToWhatsApp()">
+                    💬 WhatsApp'tan Gönder
+                </button>
+            </div>
 
             <button
                 type="button"
@@ -1823,6 +1834,26 @@
 </div>
 
 
+
+
+<!-- DOĞRUDAN SİPARİŞ / WHATSAPP TELEFON KODU -->
+<div id="directVerifyModal" class="verify-modal hidden">
+  <div class="verify-modal-card">
+    <h2>📱 Telefon ile Siparişi Onayla</h2>
+    <p class="small" style="text-align:left">Telefon numaranızı girin. WhatsApp'ta kendi numaranıza doğrulama kodu içeren hazır mesaj açılacak. Kodu aşağıya girince siparişiniz kesinleşir.</p>
+    <label>Telefon numarası</label>
+    <input id="directPhoneInput" type="tel" inputmode="tel" placeholder="05xx xxx xx xx">
+    <button type="button" class="main-button whatsapp-button" onclick="sendDirectVerificationCode()">💬 WhatsApp Doğrulama Kodunu Aç</button>
+    <div id="directCodeArea" class="hidden" style="margin-top:14px">
+      <label>6 haneli güvenlik kodu</label>
+      <input id="directCodeInput" type="text" inputmode="numeric" maxlength="6" placeholder="000000">
+      <button type="button" class="main-button direct-order-button" onclick="verifyDirectOrder()">✓ Kodu Doğrula ve Siparişi Ver</button>
+    </div>
+    <div id="directVerifyStatus" class="verify-status"></div>
+    <button type="button" class="main-button back-button" onclick="closeDirectOrderVerification()">Kapat</button>
+  </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="supabase-config.js"></script>
 <script>
@@ -1878,6 +1909,7 @@
 
     let selectedReviewRating = 0;
     let appliedCoupons = [];
+    let directVerification = null;
 
 
     /* =========================================
@@ -3073,11 +3105,17 @@
        WHATSAPP
     ========================================= */
 
-    async function sendToWhatsApp() {
-        const items = order.items.map(item => ({ productId: item.productId, quantity: Number(item.quantity) })).filter(item => item.quantity > 0);
-        if (!items.length) return alert("Siparişinizde ürün bulunmuyor.");
+    function normalizePhoneNumber(value) {
+        let digits = String(value || "").replace(/\D/g, "");
+        if (digits.startsWith("00")) digits = digits.slice(2);
+        if (digits.startsWith("0")) digits = "90" + digits.slice(1);
+        else if (digits.length === 10) digits = "90" + digits;
+        if (!digits.startsWith("90") || digits.length !== 12) return null;
+        return digits;
+    }
 
-        const { data, error } = await supabaseClient.rpc("create_order_with_coupons", {
+    function getOrderRpcPayload() {
+        return {
             p_name: order.name,
             p_address: order.address,
             p_payment: order.payment,
@@ -3085,20 +3123,88 @@
             p_latitude: order.latitude,
             p_longitude: order.longitude,
             p_google_maps_url: order.googleMapsUrl || "",
-            p_items: items,
+            p_items: order.items.map(item => ({ productId: item.productId, quantity: Number(item.quantity) })).filter(item => item.quantity > 0),
             p_coupon_codes: order.couponCodes || []
-        });
+        };
+    }
+
+    function openDirectOrderVerification() {
+        if (!order.name || !order.address || !order.payment || !order.items.length) {
+            alert("Önce sipariş bilgilerini eksiksiz hazırlayın.");
+            return;
+        }
+        directVerification = null;
+        document.getElementById("directCodeArea").classList.add("hidden");
+        document.getElementById("directCodeInput").value = "";
+        document.getElementById("directVerifyStatus").textContent = "";
+        document.getElementById("directVerifyModal").classList.remove("hidden");
+    }
+
+    function closeDirectOrderVerification() {
+        document.getElementById("directVerifyModal").classList.add("hidden");
+    }
+
+    async function sendDirectVerificationCode() {
+        const status = document.getElementById("directVerifyStatus");
+        const phone = normalizePhoneNumber(document.getElementById("directPhoneInput").value);
+        if (!phone) {
+            status.textContent = "Geçerli bir Türkiye cep telefonu numarası girin.";
+            return;
+        }
+        status.textContent = "Kod hazırlanıyor...";
+        const { data, error } = await supabaseClient.rpc("begin_phone_whatsapp_verification", { p_phone: phone });
         if (error) {
             console.error(error);
-            alert("Sipariş kaydedilemedi: " + error.message);
+            status.textContent = "Kod oluşturulamadı: " + error.message;
+            return;
+        }
+        directVerification = { challengeId: data.challenge_id, phone };
+        document.getElementById("directCodeArea").classList.remove("hidden");
+        status.textContent = "WhatsApp mesajı açıldı. Mesajdaki 6 haneli kodu aşağıya girin.";
+        const text = `Telefonunuzun doğrulanması için bu güvenlik kodunu kullanınız: ${data.code}`;
+        const url = "https://wa.me/" + phone + "?text=" + encodeURIComponent(text);
+        const opened = window.open(url, "_blank");
+        if (!opened) window.location.href = url;
+    }
+
+    async function verifyDirectOrder() {
+        const status = document.getElementById("directVerifyStatus");
+        const code = document.getElementById("directCodeInput").value.replace(/\D/g, "");
+        if (!directVerification || code.length !== 6) {
+            status.textContent = "6 haneli güvenlik kodunu girin.";
+            return;
+        }
+        status.textContent = "Doğrulanıyor ve sipariş oluşturuluyor...";
+        const payload = getOrderRpcPayload();
+        payload.p_phone = directVerification.phone;
+        payload.p_challenge_id = directVerification.challengeId;
+        payload.p_code = code;
+        const { data, error } = await supabaseClient.rpc("create_verified_order_with_coupons", payload);
+        if (error) {
+            console.error(error);
+            status.textContent = "Doğrulama başarısız: " + error.message;
+            return;
+        }
+        closeDirectOrderVerification();
+        alert(`Siparişiniz başarıyla alındı. Sipariş No: #${data.id}`);
+        resetOrderState();
+    }
+
+    async function sendToWhatsApp() {
+        const payload = getOrderRpcPayload();
+        if (!payload.p_items.length) return alert("Siparişinizde ürün bulunmuyor.");
+
+        const { data, error } = await supabaseClient.rpc("create_pending_whatsapp_order_with_coupons", payload);
+        if (error) {
+            console.error(error);
+            alert("WhatsApp siparişi hazırlanamadı: " + error.message);
             return;
         }
 
-        const savedOrder = data || {};
-        const savedItems = Array.isArray(savedOrder.items) ? savedOrder.items : [];
-        const savedSubtotal = Number(savedOrder.subtotal || savedOrder.total || 0);
-        const savedDiscount = Number(savedOrder.discount_amount || 0);
-        const savedTotal = Number(savedOrder.total || 0);
+        const savedItems = Array.isArray(data.items) ? data.items : [];
+        const savedSubtotal = Number(data.subtotal || data.total || 0);
+        const savedDiscount = Number(data.discount_amount || 0);
+        const savedTotal = Number(data.total || 0);
         let message = `Merhaba, ben ${order.name}.
 
 Sipariş vermek istiyorum:
@@ -3109,10 +3215,8 @@ Sipariş vermek istiyorum:
         message += `
 Ara Toplam: ${savedSubtotal.toLocaleString("tr-TR")} TL
 `;
-        if (savedDiscount > 0) {
-            message += `İndirim${Array.isArray(savedOrder.coupon_codes) && savedOrder.coupon_codes.length ? ` (${savedOrder.coupon_codes.join(", ")})` : ""}: -${savedDiscount.toLocaleString("tr-TR")} TL
+        if (savedDiscount > 0) message += `İndirim: -${savedDiscount.toLocaleString("tr-TR")} TL
 `;
-        }
         message += `Toplam: ${savedTotal.toLocaleString("tr-TR")} TL
 Adresim: ${order.address}
 `;
@@ -3126,10 +3230,14 @@ ${order.googleMapsUrl}
         if (order.note) message += `Sipariş notu: ${order.note}
 `;
         message += `
-Sipariş No: #${savedOrder.id}`;
+Sipariş No: #${data.id}`;
+        message += `
+🔐 Güvenlik Kodu: ${data.security_code}`;
+        message += `
+Bu kod, WhatsApp siparişinin işletme tarafından doğrulanması için kullanılacaktır.`;
 
-        const phoneNumber = "905451014563";
-        const whatsappUrl = "https://wa.me/" + phoneNumber + "?text=" + encodeURIComponent(message);
+        const businessPhone = "905451014563";
+        const whatsappUrl = "https://wa.me/" + businessPhone + "?text=" + encodeURIComponent(message);
         resetOrderState();
         const opened = window.open(whatsappUrl, "_blank");
         if (!opened) window.location.href = whatsappUrl;
