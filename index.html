@@ -2074,20 +2074,41 @@
         el.classList.toggle("hidden", count === 0);
     }
 
-    function calculateTotal() {
+    function refreshDiscountDisplays() {
         const subtotal = getSubtotal();
         const discount = getPreviewDiscount(subtotal);
         const total = Math.max(0, subtotal - discount);
+
         const subtotalEl = document.getElementById("subtotalPrice");
         const totalEl = document.getElementById("totalPrice");
         const discountEl = document.getElementById("discountPrice");
         const discountLine = document.getElementById("discountLine");
+
         if (subtotalEl) subtotalEl.textContent = `${subtotal.toLocaleString("tr-TR")} TL`;
         if (totalEl) totalEl.textContent = `${total.toLocaleString("tr-TR")} TL`;
         if (discountEl) discountEl.textContent = `-${discount.toLocaleString("tr-TR")} TL`;
         if (discountLine) discountLine.classList.toggle("hidden", discount <= 0);
+
+        // Sipariş özeti açıkken de indirim/tutar anında yenilensin.
+        const summaryTotalEl = document.getElementById("summaryTotal");
+        const summaryInfo = document.getElementById("summaryDiscountInfo");
+        if (summaryTotalEl) summaryTotalEl.textContent = `${total.toLocaleString("tr-TR")} TL`;
+        if (summaryInfo) {
+            if (discount > 0 && appliedCoupons.length) {
+                summaryInfo.innerHTML = `<div class="discount-line"><span>Ara Toplam</span><strong>${subtotal.toLocaleString("tr-TR")} TL</strong></div><div class="discount-line saving"><span>İndirim (${escapeHtml(order.couponCodes.join(", "))})</span><strong>-${discount.toLocaleString("tr-TR")} TL</strong></div>`;
+                summaryInfo.classList.remove("hidden");
+            } else {
+                summaryInfo.innerHTML = "";
+                summaryInfo.classList.add("hidden");
+            }
+        }
+
         updateCouponCount();
         return total;
+    }
+
+    function calculateTotal() {
+        return refreshDiscountDisplays();
     }
 
     function hideMainPagesForCoupon() {
@@ -2149,6 +2170,30 @@
             if(!data || data.valid!==true){ order.couponCodes=[]; appliedCoupons=[]; saveOrder(); calculateTotal(); renderAppliedCoupons(); return false; }
             appliedCoupons=Array.isArray(data.coupons)?data.coupons:[]; saveOrder(); calculateTotal(); renderAppliedCoupons(); return true;
         } catch(error){ if(!silent) console.error(error); return false; }
+    }
+
+    async function refreshAppliedCouponsAfterCampaignUpdate() {
+        if (!Array.isArray(order.couponCodes) || !order.couponCodes.length) {
+            refreshDiscountDisplays();
+            return;
+        }
+
+        // Realtime olayı transaction commit'inden hemen sonra gelebilir.
+        // Yeni kampanya oranının RPC tarafından kesin görülmesi için kısa
+        // gecikmelerle tekrar doğrula ve başarılı olduğunda tüm toplamları yenile.
+        const delays = [0, 150, 500, 1200];
+        for (const delay of delays) {
+            if (delay) await new Promise(resolve => setTimeout(resolve, delay));
+            const ok = await revalidateCouponCodes(true);
+            if (ok) {
+                refreshDiscountDisplays();
+                renderAppliedCoupons();
+                return;
+            }
+        }
+
+        // Geçici bağlantı hatasında eski kuponları silmeden mevcut görünümü koru.
+        refreshDiscountDisplays();
     }
 
     async function removeCouponCode(code) {
@@ -3384,7 +3429,7 @@ Sipariş No: #${savedOrder.id}`;
         } else if (eventType === "INSERT" || eventType === "UPDATE") {
             const incoming = changed;
             const index = notifications.findIndex(n => String(n.id) === id);
-            if (index >= 0) notifications[index] = incoming;
+            if (index >= 0) notifications[index] = { ...notifications[index], ...incoming };
             else notifications.unshift(incoming);
         }
 
@@ -3393,6 +3438,17 @@ Sipariş No: #${savedOrder.id}`;
 
         if (!document.getElementById("notificationPage").classList.contains("hidden")) {
             renderNotifications();
+        }
+
+        // UPDATE sonrasında kaydı Supabase'ten hemen tekrar çek ve uygulanmış
+        // kuponları yeniden doğrula. Böylece admin indirim oranını/tutarını
+        // değiştirdiği anda müşteri ekranındaki İndirim ve Ödenecek Toplam
+        // refresh gerektirmeden yeniden hesaplanır.
+        if (eventType === "UPDATE") {
+            queueMicrotask(async () => {
+                await loadNotifications();
+                await refreshAppliedCouponsAfterCampaignUpdate();
+            });
         }
     }
 
@@ -3578,7 +3634,7 @@ Sipariş No: #${savedOrder.id}`;
      * 2) Realtime bağlantısı bir olayı kaçırırsa 5 saniyelik sessiz senkronizasyon düzeltir.
      */
     const publicUpdatesChannel = supabaseClient
-        .channel("public-updates-v3")
+        .channel("public-updates-v4")
         .on("postgres_changes", { event: "*", schema: "public", table: "notifications" }, applyRealtimeNotification)
         .on("postgres_changes", { event: "*", schema: "public", table: "products" }, () => loadProducts())
         .on("postgres_changes", { event: "*", schema: "public", table: "reviews" }, applyRealtimeReview)
