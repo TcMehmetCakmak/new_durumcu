@@ -381,7 +381,9 @@ function renderOrders(){
   if(!list.length){el.innerHTML='<div class="empty">Filtreye uyan sipariş yok.</div>';return;}
   el.innerHTML=list.map(order=>{
     const isWhatsapp=order.verification_method==="whatsapp-business";
-    const statusBadge=order.status==="onay-bekliyor"?'<span class="badge badge-pending">WhatsApp Onayı Bekliyor</span>':order.status==="tamamlandi"?'<span class="badge badge-done">Tamamlandı</span>':order.status==="iptal-edildi"?'<span class="badge badge-cancel">İptal edildi</span>':'<span class="badge badge-active">Devam ediyor</span>';
+    const whatsappVerified=!!order.verified_at;
+    const needsWhatsappVerification=isWhatsapp&&!whatsappVerified&&order.status!=="iptal-edildi";
+    const statusBadge=needsWhatsappVerification?'<span class="badge badge-pending">WhatsApp Onayı Bekliyor</span>':order.status==="tamamlandi"?'<span class="badge badge-done">Tamamlandı</span>':order.status==="iptal-edildi"?'<span class="badge badge-cancel">İptal edildi</span>':'<span class="badge badge-active">Devam ediyor</span>';
     const sourceBadge=isWhatsapp?'<span class="badge" style="background:#dcf8c6;color:#176b2c;margin-left:6px">🟢 WhatsApp</span>':'<span class="badge" style="background:#e8eef7;color:#345">🌐 Web</span>';
     const badge=`${statusBadge}${sourceBadge}`;
     const items=(order.items||[]).map(i=>`${escapeHtml(i.icon)} ${escapeHtml(i.name)} × ${i.quantity} — ${money(i.lineTotal)}`).join("<br>");
@@ -391,11 +393,11 @@ function renderOrders(){
       <div><strong>Toplam: ${money(order.total)}</strong>${Number(order.discount_amount||0)>0?`<div class="muted">Ara toplam: ${money(order.subtotal||Number(order.total)+Number(order.discount_amount||0))} · İndirim: -${money(order.discount_amount)}${(Array.isArray(order.coupon_codes)&&order.coupon_codes.length)?` · Kodlar: ${escapeHtml(order.coupon_codes.join(", "))}`:(order.coupon_code?` · Kod: ${escapeHtml(order.coupon_code)}`:"")}</div>`:""}</div>
       <div class="muted" style="margin-top:7px">📍 ${order.google_maps_url?`<a href="${escapeAttr(order.google_maps_url)}" target="_blank" rel="noopener" style="color:inherit;text-decoration:underline;cursor:pointer">${escapeHtml(order.address)}</a>`:escapeHtml(order.address)}<br>💳 ${escapeHtml(order.payment)}${order.phone_number?`<br>📱 <a href="tel:+${escapeAttr(order.phone_number)}" style="color:inherit">+${escapeHtml(order.phone_number)}</a>`:""}${order.note?`<br>📝 ${escapeHtml(order.note)}`:""}</div>
       <div class="actions" style="margin-top:12px">
-        ${order.status==="onay-bekliyor"?`<input id="wa-code-${order.id}" maxlength="6" inputmode="numeric" placeholder="Güvenlik kodu" value="${escapeAttr(whatsappCodeDrafts.get(String(order.id))||"")}" oninput="whatsappCodeDrafts.set('${order.id}', this.value.replace(/\D/g,'').slice(0,6)); this.value=whatsappCodeDrafts.get('${order.id}')" style="max-width:150px;padding:9px;border:1px solid #ddd;border-radius:9px"><button class="btn btn-success" onclick="verifyWhatsappOrder(${order.id})">✓ WhatsApp Siparişini Onayla</button><button class="btn btn-danger" onclick="setStatus(${order.id},'iptal-edildi')">✕ İptal</button>`:""}
+        ${needsWhatsappVerification?`<input id="wa-code-${order.id}" maxlength="6" inputmode="numeric" placeholder="Güvenlik kodu" value="${escapeAttr(whatsappCodeDrafts.get(String(order.id))||"")}" oninput="whatsappCodeDrafts.set('${order.id}', this.value.replace(/\D/g,'').slice(0,6)); this.value=whatsappCodeDrafts.get('${order.id}')" style="max-width:150px;padding:9px;border:1px solid #ddd;border-radius:9px"><button class="btn btn-success" onclick="verifyWhatsappOrder(${order.id})">✓ WhatsApp Kodu ile Doğrula</button><button class="btn btn-danger" onclick="setStatus(${order.id},'iptal-edildi')">✕ İptal</button>`:""}
         <button class="btn pdf-btn" onclick="downloadOrderPdf(${order.id})">🧾 Çıktı Al (PDF)</button>
-        ${order.status!=="onay-bekliyor"&&order.status!=="tamamlandi"?`<button class="btn btn-success" onclick="setStatus(${order.id},'tamamlandi')">✓ Tamamlandı</button>`:""}
-        ${order.status!=="onay-bekliyor"&&order.status!=="iptal-edildi"?`<button class="btn btn-danger" onclick="setStatus(${order.id},'iptal-edildi')">✕ İptal</button>`:""}
-        ${order.status!=="onay-bekliyor"&&order.status!=="devam-ediyor"?`<button class="btn btn-light" onclick="setStatus(${order.id},'devam-ediyor')">↻ Devam ediyor</button>`:""}
+        ${!needsWhatsappVerification&&order.status!=="tamamlandi"&&!(isWhatsapp&&!whatsappVerified)?`<button class="btn btn-success" onclick="setStatus(${order.id},'tamamlandi')">✓ Tamamlandı</button>`:""}
+        ${!needsWhatsappVerification&&order.status!=="iptal-edildi"?`<button class="btn btn-danger" onclick="setStatus(${order.id},'iptal-edildi')">✕ İptal</button>`:""}
+        ${isWhatsapp&&!whatsappVerified&&order.status==="iptal-edildi"?`<button class="btn btn-light" onclick="resumeWhatsappVerification(${order.id})">↻ Devam ediyor</button>`:(!needsWhatsappVerification&&order.status!=="devam-ediyor"&&!(isWhatsapp&&!whatsappVerified)?`<button class="btn btn-light" onclick="setStatus(${order.id},'devam-ediyor')">↻ Devam ediyor</button>`:"")}
       </div></div>`;
   }).join("");
 }
@@ -409,6 +411,17 @@ async function verifyWhatsappOrder(id){
     whatsappCodeDrafts.delete(String(id));
     toast("WhatsApp siparişi doğrulandı.");
     await loadAdminOrders();
+  }catch(e){toast(e.message);}
+}
+
+async function resumeWhatsappVerification(id){
+  try{
+    const {data,error}=await supabaseClient.from("orders").update({status:"onay-bekliyor"}).eq("id",id).select("*").single();
+    if(error)throw error;
+    orders=orders.map(o=>o.id===id?data:o);
+    renderOrders();
+    loadDashboard();
+    toast("WhatsApp siparişi tekrar onay bekliyor.");
   }catch(e){toast(e.message);}
 }
 
