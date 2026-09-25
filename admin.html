@@ -34,7 +34,7 @@ label{display:block;margin:12px 0 6px;font-weight:bold}
 .badge{padding:5px 9px;border-radius:999px;font-size:12px;font-weight:bold}
 .badge-pending{background:#fff2cc;color:#8a5a00}.badge-active{background:#e3f2fd;color:#0d47a1}.badge-done{background:#dff5e3;color:#176b2c}.badge-cancel{background:#ffe1e1;color:#a11}
 .order-items{margin:12px 0;padding:10px;background:#f8f8f8;border-radius:10px}
-.filters{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:15px}
+.filters{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px;margin-bottom:15px}
 .empty{text-align:center;color:#777;padding:30px}
 .modal{position:fixed;inset:0;background:#0008;display:flex;align-items:center;justify-content:center;padding:20px}
 .modal-card{background:#fff;border-radius:16px;padding:22px;max-width:520px;width:100%}
@@ -107,6 +107,11 @@ label{display:block;margin:12px 0 6px;font-weight:bold}
           <option value="tamamlandi">Tamamlananlar</option>
           <option value="iptal-edildi">İptal edilenler</option>
         </select>
+        <select id="sourceFilter" onchange="renderOrders()">
+          <option value="all">Tüm sipariş kanalları</option>
+          <option value="whatsapp">WhatsApp siparişleri</option>
+          <option value="web">Web siparişleri</option>
+        </select>
         <select id="sortFilter" onchange="renderOrders()">
           <option value="newest">Yeniden eskiye</option>
           <option value="oldest">Eskiden yeniye</option>
@@ -178,10 +183,10 @@ label{display:block;margin:12px 0 6px;font-weight:bold}
   <div class="modal-card">
     <div class="header"><div><h2>💰 Dönemsel Ciro</h2><div class="muted">Yalnızca tamamlanan siparişlerin ödenen toplamı.</div></div><button class="btn btn-light" onclick="closeRevenueModal()">✕</button></div>
     <div class="revenue-grid">
-      <div class="revenue-box"><span>Son 1 Ay</span><strong id="revenue1m">0 TL</strong></div>
-      <div class="revenue-box"><span>Son 3 Ay</span><strong id="revenue3m">0 TL</strong></div>
-      <div class="revenue-box"><span>Son 6 Ay</span><strong id="revenue6m">0 TL</strong></div>
-      <div class="revenue-box"><span>Son 12 Ay / Yıllık</span><strong id="revenue12m">0 TL</strong></div>
+      <div class="revenue-box"><span>Son 1 Ay</span><strong id="revenue1m">0 TL</strong><div class="muted" style="margin-top:7px">WhatsApp: <span id="revenueWa1m">0 TL</span></div></div>
+      <div class="revenue-box"><span>Son 3 Ay</span><strong id="revenue3m">0 TL</strong><div class="muted" style="margin-top:7px">WhatsApp: <span id="revenueWa3m">0 TL</span></div></div>
+      <div class="revenue-box"><span>Son 6 Ay</span><strong id="revenue6m">0 TL</strong><div class="muted" style="margin-top:7px">WhatsApp: <span id="revenueWa6m">0 TL</span></div></div>
+      <div class="revenue-box"><span>Son 12 Ay / Yıllık</span><strong id="revenue12m">0 TL</strong><div class="muted" style="margin-top:7px">WhatsApp: <span id="revenueWa12m">0 TL</span></div></div>
     </div>
   </div>
 </div>
@@ -200,6 +205,7 @@ const supabaseClient = window.supabase.createClient(
 let products = [];
 let orders = [];
 let notifications = [];
+const whatsappCodeDrafts = new Map();
 
 function money(n) {
   return Number(n || 0).toLocaleString("tr-TR", {minimumFractionDigits:0, maximumFractionDigits:2}) + " TL";
@@ -353,10 +359,18 @@ async function deleteProduct(id){
   }catch(e){toast(e.message);}
 }
 function renderOrders(){
+  document.querySelectorAll('input[id^="wa-code-"]').forEach(input=>{
+    const id=input.id.replace("wa-code-","");
+    if(input.value) whatsappCodeDrafts.set(String(id), input.value);
+  });
   const status=document.getElementById("statusFilter").value;
+  const source=document.getElementById("sourceFilter")?.value||"all";
   const sort=document.getElementById("sortFilter").value;
   const q=document.getElementById("orderSearch").value.toLowerCase().trim();
-  let list=orders.filter(o=>status==="all"||o.status===status).filter(o=>!q||String(o.id).includes(q)||(o.name||"").toLowerCase().includes(q)||(o.address||"").toLowerCase().includes(q));
+  let list=orders
+    .filter(o=>status==="all"||o.status===status)
+    .filter(o=>source==="all"||(source==="whatsapp"?o.verification_method==="whatsapp-business":o.verification_method!=="whatsapp-business"))
+    .filter(o=>!q||String(o.id).includes(q)||(o.name||"").toLowerCase().includes(q)||(o.address||"").toLowerCase().includes(q));
   list.sort((a,b)=>{
     if(sort==="oldest")return new Date(a.created_at)-new Date(b.created_at);
     if(sort==="high")return Number(b.total)-Number(a.total);
@@ -366,7 +380,10 @@ function renderOrders(){
   const el=document.getElementById("ordersList");
   if(!list.length){el.innerHTML='<div class="empty">Filtreye uyan sipariş yok.</div>';return;}
   el.innerHTML=list.map(order=>{
-    const badge=order.status==="onay-bekliyor"?'<span class="badge badge-pending">WhatsApp Onayı Bekliyor</span>':order.status==="tamamlandi"?'<span class="badge badge-done">Tamamlandı</span>':order.status==="iptal-edildi"?'<span class="badge badge-cancel">İptal edildi</span>':'<span class="badge badge-active">Devam ediyor</span>';
+    const isWhatsapp=order.verification_method==="whatsapp-business";
+    const statusBadge=order.status==="onay-bekliyor"?'<span class="badge badge-pending">WhatsApp Onayı Bekliyor</span>':order.status==="tamamlandi"?'<span class="badge badge-done">Tamamlandı</span>':order.status==="iptal-edildi"?'<span class="badge badge-cancel">İptal edildi</span>':'<span class="badge badge-active">Devam ediyor</span>';
+    const sourceBadge=isWhatsapp?'<span class="badge" style="background:#dcf8c6;color:#176b2c;margin-left:6px">🟢 WhatsApp</span>':'<span class="badge" style="background:#e8eef7;color:#345">🌐 Web</span>';
+    const badge=`${statusBadge}${sourceBadge}`;
     const items=(order.items||[]).map(i=>`${escapeHtml(i.icon)} ${escapeHtml(i.name)} × ${i.quantity} — ${money(i.lineTotal)}`).join("<br>");
     const date=new Date(order.created_at).toLocaleString("tr-TR");
     return `<div class="order"><div class="order-head"><div><strong>#${order.id}</strong> · ${escapeHtml(order.name)}<div class="muted">${date}</div></div>${badge}</div>
@@ -374,7 +391,7 @@ function renderOrders(){
       <div><strong>Toplam: ${money(order.total)}</strong>${Number(order.discount_amount||0)>0?`<div class="muted">Ara toplam: ${money(order.subtotal||Number(order.total)+Number(order.discount_amount||0))} · İndirim: -${money(order.discount_amount)}${(Array.isArray(order.coupon_codes)&&order.coupon_codes.length)?` · Kodlar: ${escapeHtml(order.coupon_codes.join(", "))}`:(order.coupon_code?` · Kod: ${escapeHtml(order.coupon_code)}`:"")}</div>`:""}</div>
       <div class="muted" style="margin-top:7px">📍 ${order.google_maps_url?`<a href="${escapeAttr(order.google_maps_url)}" target="_blank" rel="noopener" style="color:inherit;text-decoration:underline;cursor:pointer">${escapeHtml(order.address)}</a>`:escapeHtml(order.address)}<br>💳 ${escapeHtml(order.payment)}${order.phone_number?`<br>📱 <a href="tel:+${escapeAttr(order.phone_number)}" style="color:inherit">+${escapeHtml(order.phone_number)}</a>`:""}${order.note?`<br>📝 ${escapeHtml(order.note)}`:""}</div>
       <div class="actions" style="margin-top:12px">
-        ${order.status==="onay-bekliyor"?`<input id="wa-code-${order.id}" maxlength="6" inputmode="numeric" placeholder="Güvenlik kodu" style="max-width:150px;padding:9px;border:1px solid #ddd;border-radius:9px"><button class="btn btn-success" onclick="verifyWhatsappOrder(${order.id})">✓ WhatsApp Siparişini Onayla</button>`:""}
+        ${order.status==="onay-bekliyor"?`<input id="wa-code-${order.id}" maxlength="6" inputmode="numeric" placeholder="Güvenlik kodu" value="${escapeAttr(whatsappCodeDrafts.get(String(order.id))||"")}" oninput="whatsappCodeDrafts.set('${order.id}', this.value.replace(/\D/g,'').slice(0,6)); this.value=whatsappCodeDrafts.get('${order.id}')" style="max-width:150px;padding:9px;border:1px solid #ddd;border-radius:9px"><button class="btn btn-success" onclick="verifyWhatsappOrder(${order.id})">✓ WhatsApp Siparişini Onayla</button><button class="btn btn-danger" onclick="setStatus(${order.id},'iptal-edildi')">✕ İptal</button>`:""}
         <button class="btn pdf-btn" onclick="downloadOrderPdf(${order.id})">🧾 Çıktı Al (PDF)</button>
         ${order.status!=="onay-bekliyor"&&order.status!=="tamamlandi"?`<button class="btn btn-success" onclick="setStatus(${order.id},'tamamlandi')">✓ Tamamlandı</button>`:""}
         ${order.status!=="onay-bekliyor"&&order.status!=="iptal-edildi"?`<button class="btn btn-danger" onclick="setStatus(${order.id},'iptal-edildi')">✕ İptal</button>`:""}
@@ -389,6 +406,7 @@ async function verifyWhatsappOrder(id){
   try{
     const {data,error}=await supabaseClient.rpc("verify_whatsapp_order",{p_order_id:id,p_code:code});
     if(error)throw error;
+    whatsappCodeDrafts.delete(String(id));
     toast("WhatsApp siparişi doğrulandı.");
     await loadAdminOrders();
   }catch(e){toast(e.message);}
@@ -406,15 +424,21 @@ function toggleNotificationDiscountFields(){
   document.getElementById("notificationDiscountFields")?.classList.toggle("hidden",!isDiscount);
 }
 
-function revenueSinceMonths(months){
+function revenueSinceMonths(months, source="all"){
   const cutoff=new Date(); cutoff.setMonth(cutoff.getMonth()-months);
-  return orders.filter(o=>o.status==="tamamlandi"&&new Date(o.created_at)>=cutoff).reduce((s,o)=>s+Number(o.total||0),0);
+  return orders.filter(o=>o.status==="tamamlandi"&&new Date(o.created_at)>=cutoff)
+    .filter(o=>source==="all"||(source==="whatsapp"?o.verification_method==="whatsapp-business":o.verification_method!=="whatsapp-business"))
+    .reduce((s,o)=>s+Number(o.total||0),0);
 }
 function openRevenueModal(){
   document.getElementById("revenue1m").textContent=money(revenueSinceMonths(1));
   document.getElementById("revenue3m").textContent=money(revenueSinceMonths(3));
   document.getElementById("revenue6m").textContent=money(revenueSinceMonths(6));
   document.getElementById("revenue12m").textContent=money(revenueSinceMonths(12));
+  document.getElementById("revenueWa1m").textContent=money(revenueSinceMonths(1,"whatsapp"));
+  document.getElementById("revenueWa3m").textContent=money(revenueSinceMonths(3,"whatsapp"));
+  document.getElementById("revenueWa6m").textContent=money(revenueSinceMonths(6,"whatsapp"));
+  document.getElementById("revenueWa12m").textContent=money(revenueSinceMonths(12,"whatsapp"));
   document.getElementById("revenueModal").classList.remove("hidden");
 }
 function closeRevenueModal(){document.getElementById("revenueModal").classList.add("hidden");}
@@ -506,7 +530,9 @@ const adminRealtimeChannel = supabaseClient
   .subscribe();
 
 setInterval(()=>{
-  if(!document.hidden&&navigator.onLine){loadAdminOrders();}
+  const active=document.activeElement;
+  const typingWhatsappCode=active && active.matches && active.matches('input[id^="wa-code-"]');
+  if(!document.hidden&&navigator.onLine&&!typingWhatsappCode){loadAdminOrders();}
 },5000);
 
 supabaseClient.auth.onAuthStateChange((_event,session)=>{
