@@ -370,11 +370,10 @@ function renderOrders(){
     const date=new Date(order.created_at).toLocaleString("tr-TR");
     return `<div class="order"><div class="order-head"><div><strong>#${order.id}</strong> · ${escapeHtml(order.name)}<div class="muted">${date}</div></div>${badge}</div>
       <div class="order-items">${items}</div>
-      <div><strong>Toplam: ${money(order.total)}</strong>${Number(order.discount_amount||0)>0?`<div class="muted">Ara toplam: ${money(order.subtotal||Number(order.total)+Number(order.discount_amount||0))} · İndirim: -${money(order.discount_amount)}${order.coupon_code?` · Kod: ${escapeHtml(order.coupon_code)}`:""}</div>`:""}</div>
-      <div class="muted" style="margin-top:7px">📍 ${escapeHtml(order.address)}<br>💳 ${escapeHtml(order.payment)}${order.note?`<br>📝 ${escapeHtml(order.note)}`:""}</div>
+      <div><strong>Toplam: ${money(order.total)}</strong>${Number(order.discount_amount||0)>0?`<div class="muted">Ara toplam: ${money(order.subtotal||Number(order.total)+Number(order.discount_amount||0))} · İndirim: -${money(order.discount_amount)}${(Array.isArray(order.coupon_codes)&&order.coupon_codes.length)?` · Kodlar: ${escapeHtml(order.coupon_codes.join(", "))}`:(order.coupon_code?` · Kod: ${escapeHtml(order.coupon_code)}`:"")}</div>`:""}</div>
+      <div class="muted" style="margin-top:7px">📍 ${order.google_maps_url?`<a href="${escapeAttr(order.google_maps_url)}" target="_blank" rel="noopener" style="color:inherit;text-decoration:underline;cursor:pointer">${escapeHtml(order.address)}</a>`:escapeHtml(order.address)}<br>💳 ${escapeHtml(order.payment)}${order.note?`<br>📝 ${escapeHtml(order.note)}`:""}</div>
       <div class="actions" style="margin-top:12px">
         <button class="btn pdf-btn" onclick="downloadOrderPdf(${order.id})">🧾 Çıktı Al (PDF)</button>
-        ${order.google_maps_url?`<a class="btn btn-light" href="${escapeAttr(order.google_maps_url)}" target="_blank" rel="noopener">Haritada Aç</a>`:""}
         ${order.status!=="tamamlandi"?`<button class="btn btn-success" onclick="setStatus(${order.id},'tamamlandi')">✓ Tamamlandı</button>`:""}
         ${order.status!=="iptal-edildi"?`<button class="btn btn-danger" onclick="setStatus(${order.id},'iptal-edildi')">✕ İptal</button>`:""}
         ${order.status!=="devam-ediyor"?`<button class="btn btn-light" onclick="setStatus(${order.id},'devam-ediyor')">↻ Devam ediyor</button>`:""}
@@ -415,7 +414,7 @@ function downloadOrderPdf(id){
   line(`Durumcu - Siparis #${order.id}`,18,true); line(`Tarih: ${new Date(order.created_at).toLocaleString("tr-TR")}`); line(`Durum: ${order.status}`,11,true); y+=3;
   line("Siparis Detaylari",14,true); (order.items||[]).forEach(i=>line(`${i.icon||""} ${i.name} x ${i.quantity} - ${money(i.lineTotal)}`));
   y+=3; const subtotal=Number(order.subtotal||Number(order.total||0)+Number(order.discount_amount||0)); line(`Ara Toplam: ${money(subtotal)}`,11,true);
-  if(Number(order.discount_amount||0)>0){line(`Indirim: -${money(order.discount_amount)}${order.coupon_code?` (Kod: ${order.coupon_code})`:""}`);}
+  if(Number(order.discount_amount||0)>0){line(`Indirim: -${money(order.discount_amount)}${(Array.isArray(order.coupon_codes)&&order.coupon_codes.length)?` (Kodlar: ${order.coupon_codes.join(", ")})`:(order.coupon_code?` (Kod: ${order.coupon_code})`:"")}`);}
   line(`Odenecek Toplam: ${money(order.total)}`,13,true); y+=3;
   line(`Musteri: ${order.name}`); line(`Adres: ${order.address}`); line(`Odeme: ${order.payment}`); if(order.note)line(`Not: ${order.note}`); if(order.google_maps_url)line(`Harita: ${order.google_maps_url}`);
   doc.save(`siparis-${order.id}.pdf`);
