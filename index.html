@@ -3159,12 +3159,31 @@
             return;
         }
         directVerification = { challengeId: data.challenge_id, phone };
-        document.getElementById("directCodeArea").classList.remove("hidden");
-        status.textContent = "WhatsApp mesajı açıldı. Mesajdaki 6 haneli kodu aşağıya girin.";
         const text = `Telefonunuzun doğrulanması için bu güvenlik kodunu kullanınız: ${data.code}`;
-        const url = "https://wa.me/" + phone + "?text=" + encodeURIComponent(text);
-        const opened = window.open(url, "_blank");
-        if (!opened) window.location.href = url;
+        const appUrl = "whatsapp://send?phone=" + phone + "&text=" + encodeURIComponent(text);
+
+        let whatsappOpened = false;
+        const onVisibilityChange = () => {
+            if (document.hidden) whatsappOpened = true;
+        };
+        document.addEventListener("visibilitychange", onVisibilityChange);
+
+        // wa.me kurulu olmayan cihazlarda WhatsApp Web'e düşebildiği için,
+        // Onayla akışında önce doğrudan WhatsApp uygulamasını açmayı deniyoruz.
+        window.location.href = appUrl;
+
+        setTimeout(() => {
+            document.removeEventListener("visibilitychange", onVisibilityChange);
+            if (whatsappOpened) {
+                document.getElementById("directCodeArea").classList.remove("hidden");
+                status.textContent = "WhatsApp açıldı. Mesajdaki 6 haneli kodu aşağıya girin.";
+            } else {
+                directVerification = null;
+                document.getElementById("directCodeArea").classList.add("hidden");
+                status.textContent = "WhatsApp bulunamadı. Devam etmek için WhatsApp uygulamasını yükleyin.";
+                alert("WhatsApp bulunamadı. Devam etmek için WhatsApp uygulamasını yükleyin.");
+            }
+        }, 1400);
     }
 
     async function verifyDirectOrder() {
