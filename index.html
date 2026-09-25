@@ -1879,7 +1879,7 @@
         try {
             const { data, error } = await supabaseClient
                 .from("products")
-                .select("id,name,icon,price,active")
+                .select("id,name,icon,price,active,created_at")
                 .eq("active", true)
                 .order("created_at", { ascending: true });
 
@@ -3031,19 +3031,29 @@ Sipariş No: #${savedOrder.id}`;
        YORUM SİSTEMİ - SUPABASE
     ========================================= */
 
+    let reviewSyncInProgress = false;
+
     async function loadReviews() {
-        const { data, error } = await supabaseClient
-            .from("reviews")
-            .select("id,name,rating,comment,created_at")
-            .order("created_at", { ascending: false });
+        if (reviewSyncInProgress) return;
+        reviewSyncInProgress = true;
+        try {
+            const { data, error } = await supabaseClient
+                .from("reviews")
+                .select("id,name,rating,comment,created_at")
+                .order("created_at", { ascending: false });
 
-        if (error) {
+            if (error) throw error;
+            reviews = Array.isArray(data) ? data : [];
+            renderReviews();
+        } catch (error) {
             console.error("Yorumlar yüklenemedi:", error);
-            return;
+            const list = document.getElementById("reviewList");
+            if (list && !reviews.length) {
+                list.innerHTML = '<div class="no-reviews">Yorumlar şu anda yüklenemedi. Bağlantı tekrar kurulunca otomatik yenilenecek.</div>';
+            }
+        } finally {
+            reviewSyncInProgress = false;
         }
-
-        reviews = data || [];
-        renderReviews();
     }
 
     async function openReviewPage() {
@@ -3159,6 +3169,28 @@ Sipariş No: #${savedOrder.id}`;
             item.appendChild(comment);
             list.appendChild(item);
         });
+    }
+
+    function applyRealtimeReview(payload) {
+        const eventType = payload.eventType;
+        const changed = payload.new || {};
+        const old = payload.old || {};
+        const id = String(changed.id ?? old.id ?? "");
+
+        if (!id) {
+            loadReviews();
+            return;
+        }
+
+        if (eventType === "DELETE") {
+            reviews = reviews.filter(r => String(r.id) !== id);
+        } else if (eventType === "INSERT" || eventType === "UPDATE") {
+            const index = reviews.findIndex(r => String(r.id) === id);
+            if (index >= 0) reviews[index] = changed;
+            else reviews.unshift(changed);
+            reviews.sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
+        }
+        renderReviews();
     }
 
     /* =========================================
@@ -3398,19 +3430,26 @@ Sipariş No: #${savedOrder.id}`;
      * 2) Realtime bağlantısı bir olayı kaçırırsa 5 saniyelik sessiz senkronizasyon düzeltir.
      */
     const publicUpdatesChannel = supabaseClient
-        .channel("public-updates-v2")
+        .channel("public-updates-v3")
         .on("postgres_changes", { event: "*", schema: "public", table: "notifications" }, applyRealtimeNotification)
-        .on("postgres_changes", { event: "INSERT", schema: "public", table: "reviews" }, () => loadReviews())
+        .on("postgres_changes", { event: "*", schema: "public", table: "reviews" }, applyRealtimeReview)
         .subscribe(status => {
             console.log("Realtime durumu:", status);
             if (status === "SUBSCRIBED") loadNotifications();
         });
 
-    const notificationSyncTimer = setInterval(() => {
-        if (!document.hidden && navigator.onLine) loadNotifications();
+    const liveSyncTimer = setInterval(() => {
+        if (!document.hidden && navigator.onLine) {
+            loadNotifications();
+            loadReviews();
+        }
     }, 5000);
 
-    window.addEventListener("online", loadNotifications);
+    window.addEventListener("online", () => {
+        loadProducts();
+        loadNotifications();
+        loadReviews();
+    });
 
     /* =========================================
        SAYFA AÇILINCA

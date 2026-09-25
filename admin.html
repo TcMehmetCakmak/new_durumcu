@@ -209,16 +209,53 @@ function showApp(){
   loadAll();
 }
 async function loadAll(){
+  await Promise.allSettled([loadAdminProducts(), loadAdminOrders(), loadAdminNotifications()]);
+  renderProducts();
+  renderOrders();
+  renderAdminNotifications();
+  loadDashboard();
+}
+
+async function loadAdminProducts(){
   try{
-    const [p,o,n]=await Promise.all([
-      supabaseClient.from("products").select("id,name,icon,price,active,created_at").order("created_at",{ascending:true}),
-      supabaseClient.from("orders").select("*").order("created_at",{ascending:false}),
-      supabaseClient.from("notifications").select("*").order("created_at",{ascending:false})
-    ]);
-    if(p.error)throw p.error;if(o.error)throw o.error;if(n.error)throw n.error;
-    products=p.data||[];orders=o.data||[];notifications=n.data||[];
-    renderProducts();renderOrders();renderAdminNotifications();loadDashboard();
-  }catch(e){toast(e.message);}
+    const {data,error}=await supabaseClient.from("products")
+      .select("id,name,icon,price,active,created_at")
+      .order("created_at",{ascending:true});
+    if(error)throw error;
+    products=data||[];
+    renderProducts();
+  }catch(e){
+    console.error("Ürünler yüklenemedi:",e);
+    const el=document.getElementById("productList");
+    if(el)el.innerHTML='<div class="empty">Ürünler yüklenemedi: '+escapeHtml(e.message||String(e))+'</div>';
+  }
+}
+
+async function loadAdminOrders(){
+  try{
+    const {data,error}=await supabaseClient.from("orders").select("*").order("created_at",{ascending:false});
+    if(error)throw error;
+    orders=data||[];
+    renderOrders();
+    loadDashboard();
+  }catch(e){
+    console.error("Siparişler yüklenemedi:",e);
+    const el=document.getElementById("ordersList");
+    if(el)el.innerHTML='<div class="empty">Siparişler yüklenemedi: '+escapeHtml(e.message||String(e))+'</div>';
+  }
+}
+
+async function loadAdminNotifications(){
+  try{
+    const {data,error}=await supabaseClient.from("notifications").select("*").order("created_at",{ascending:false});
+    if(error)throw error;
+    notifications=data||[];
+    renderAdminNotifications();
+  }catch(e){
+    console.error("Bildirimler yüklenemedi:",e);
+    const el=document.getElementById("notificationAdminList");
+    if(el)el.innerHTML='<div class="empty">Bildirimler yüklenemedi: '+escapeHtml(e.message||String(e))+'</div>';
+  }
 }
 function loadDashboard(){
   document.getElementById("statTotal").textContent=orders.length;
@@ -372,6 +409,13 @@ async function deleteNotification(id){
 
 function escapeHtml(v){const d=document.createElement("div");d.textContent=v??"";return d.innerHTML;}
 function escapeAttr(v){return String(v??"").replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
+const adminRealtimeChannel = supabaseClient
+  .channel("admin-live-v1")
+  .on("postgres_changes",{event:"*",schema:"public",table:"products"},()=>loadAdminProducts())
+  .on("postgres_changes",{event:"*",schema:"public",table:"orders"},()=>loadAdminOrders())
+  .on("postgres_changes",{event:"*",schema:"public",table:"notifications"},()=>loadAdminNotifications())
+  .subscribe();
+
 supabaseClient.auth.onAuthStateChange((_event,session)=>{
   if(!session){document.getElementById("loginPage").classList.remove("hidden");document.getElementById("app").classList.add("hidden");}
 });
