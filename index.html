@@ -211,6 +211,20 @@
             margin-top: 8px;
         }
         .address-modal-actions button { width: auto; }
+        #confirmAddressButton {
+            background: #d8d8d8;
+            color: #8b8b8b;
+            cursor: not-allowed;
+            opacity: .72;
+            transition: background .18s ease, color .18s ease, opacity .18s ease, transform .18s ease;
+        }
+        #confirmAddressButton.address-ready {
+            background: #1f9d55;
+            color: #fff;
+            cursor: pointer;
+            opacity: 1;
+        }
+        #confirmAddressButton.address-ready:active { transform: scale(.99); }
 
         @media (max-width: 560px) {
             .address-grid { grid-template-columns: 1fr; gap: 0; }
@@ -1404,7 +1418,7 @@
             <select id="districtSelect" onchange="handleDistrictChange()" disabled>
                 <option value="">Önce il seçin</option>
             </select>
-            <select id="neighborhoodSelect" onchange="handleManualAddressChange()" disabled>
+            <select id="neighborhoodSelect" onchange="handleManualAddressChange();updateAddressConfirmButton()" disabled>
                 <option value="">Önce ilçe seçin</option>
             </select>
             <input id="streetInput" type="text" placeholder="Cadde / sokak adı">
@@ -1417,7 +1431,7 @@
             <div class="small" style="margin-top:4px;opacity:.72">Adres doğrulama: <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener" style="color:inherit">© OpenStreetMap katkıda bulunanlar</a></div>
             <div class="address-modal-actions">
                 <button type="button" class="main-button" style="background:#eee;color:#222" onclick="closeAddressModal()">Vazgeç</button>
-                <button type="button" class="main-button" onclick="confirmManualAddress()">Adresi Doğrula ve Kaydet</button>
+                <button type="button" id="confirmAddressButton" class="main-button" onclick="confirmManualAddress()" disabled>Adresi Doğrula ve Kaydet</button>
             </div>
         </div>
     </div>
@@ -2386,6 +2400,10 @@
 
     }
 
+    function createGoogleMapsAddressUrl(address) {
+        return "https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(address || "");
+    }
+
 
     /* =========================================
        KADEMELİ MANUEL ADRES
@@ -2460,6 +2478,7 @@
         modal.classList.remove("hidden");
         modal.setAttribute("aria-hidden", "false");
         await loadProvinces(addressDraft.provinceId, addressDraft.districtId, addressDraft.neighborhoodName);
+        updateAddressConfirmButton();
     }
 
     function closeAddressModal() {
@@ -2537,6 +2556,7 @@
         addressDraft.districtId = ""; addressDraft.districtName = ""; addressDraft.neighborhoodName = "";
         if (province.value) await loadDistricts(province.value);
         handleManualAddressChange();
+        updateAddressConfirmButton();
     }
 
     async function handleDistrictChange() {
@@ -2548,6 +2568,7 @@
         addressDraft.neighborhoodName = "";
         if (district.value) await loadNeighborhoods(district.value);
         handleManualAddressChange();
+        updateAddressConfirmButton();
     }
 
     function handleManualAddressChange() {
@@ -2572,6 +2593,45 @@
         return parts.join(", ");
     }
 
+    function getOuterBuildingNumber(value) {
+        const match = String(value || "").trim().match(/^\s*([0-9]+[A-Za-z]?)\b/);
+        return match ? match[1] : String(value || "").trim().split(/[\/\-]/)[0].trim();
+    }
+
+    function isManualAddressReady() {
+        handleManualAddressChange();
+        return Boolean(
+            addressDraft?.provinceId &&
+            addressDraft?.districtId &&
+            addressDraft?.neighborhoodName &&
+            addressDraft?.street &&
+            addressDraft?.buildingNo
+        );
+    }
+
+    function updateAddressConfirmButton() {
+        const button = document.getElementById("confirmAddressButton");
+        if (!button) return;
+        const ready = isManualAddressReady();
+        button.disabled = !ready;
+        button.classList.toggle("address-ready", ready);
+    }
+
+    function buildGeocodeQueries(draft) {
+        const outerNo = getOuterBuildingNumber(draft.buildingNo);
+        const street = String(draft.street || "").trim();
+        const neighborhood = String(draft.neighborhoodName || "").trim();
+        const district = String(draft.districtName || "").trim();
+        const province = String(draft.provinceName || "").trim();
+        const queries = [];
+
+        if (street && outerNo) queries.push(`${street} ${outerNo}, ${neighborhood}, ${district}, ${province}, Türkiye`);
+        if (street) queries.push(`${street}, ${neighborhood}, ${district}, ${province}, Türkiye`);
+        if (street) queries.push(`${street}, ${district}, ${province}, Türkiye`);
+
+        return [...new Set(queries.map(q => q.replace(/\s+,/g, ",").replace(/,\s*,/g, ",").trim()))];
+    }
+
     async function confirmManualAddress() {
         handleManualAddressChange();
         const status = document.getElementById("addressModalStatus");
@@ -2582,7 +2642,7 @@
         const address = buildAddressFromDraft(addressDraft);
         status.textContent = "🔎 Adres kontrol ediliyor...";
         try {
-            const verified = await verifyManualAddress(address);
+            const verified = await verifyManualAddressDraft(addressDraft);
             if (!verified) {
                 status.textContent = "❌ Adres bulunamadı. Lütfen daha açık yazın veya konum ikonuna tıklayın.";
                 return;
@@ -2591,7 +2651,8 @@
             order.address = address;
             order.latitude = verified.latitude;
             order.longitude = verified.longitude;
-            order.googleMapsUrl = createGoogleMapsUrl(verified.latitude, verified.longitude);
+            // Manuel adreste QR/Maps tam teslimat metnini arar; böylece iç kapı/daire bilgisi kaybolmaz.
+            order.googleMapsUrl = createGoogleMapsAddressUrl(address);
             document.getElementById("customerAddress").value = address;
             document.getElementById("addressPreview").textContent = address;
             document.getElementById("addressEditButton").textContent = "Düzenle";
@@ -2620,6 +2681,15 @@
             .trim()
             .toLocaleLowerCase("tr-TR")
             .replace(/\s+/g, " ");
+    }
+
+    async function verifyManualAddressDraft(draft) {
+        const queries = buildGeocodeQueries(draft);
+        for (const query of queries) {
+            const result = await verifyManualAddress(query);
+            if (result) return result;
+        }
+        return null;
     }
 
     async function verifyManualAddress(address) {
@@ -3672,7 +3742,10 @@ Bu güvenlik kodu siparişinizin işletme tarafından doğrulanması için kulla
 
 
     ["streetInput","buildingNoInput","apartmentNoInput","addressDetailInput"].forEach(id => {
-        document.getElementById(id)?.addEventListener("input", updateManualAddress);
+        document.getElementById(id)?.addEventListener("input", () => {
+            handleManualAddressChange();
+            updateAddressConfirmButton();
+        });
     });
 
 
