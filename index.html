@@ -2377,9 +2377,9 @@
 
         return (
 
-            "https://www.google.com/maps/search/?api=1" +
+            "https://www.google.com/maps/dir/?api=1" +
 
-            "&query=" +
+            "&destination=" +
 
             encodeURIComponent(
                 latitude + "," + longitude
@@ -2696,8 +2696,9 @@
             order.address = address;
             order.latitude = verified.latitude;
             order.longitude = verified.longitude;
-            // Manuel adreste QR/Maps tam teslimat metnini arar; böylece iç kapı/daire bilgisi kaybolmaz.
-            order.googleMapsUrl = createGoogleMapsAddressUrl(address);
+            // Manuel adres doğrulamasında bulunan gerçek koordinata doğrudan yol tarifi açılır.
+            // Teslimat metnindeki daire/ek adres bilgileri order.address içinde ayrıca korunur.
+            order.googleMapsUrl = createGoogleMapsUrl(verified.latitude, verified.longitude);
             document.getElementById("customerAddress").value = address;
             document.getElementById("addressPreview").textContent = address;
             document.getElementById("locationStatus").textContent = "✅ Adres doğrulandı. Google Maps konumu ve QR kodu hazır.";
