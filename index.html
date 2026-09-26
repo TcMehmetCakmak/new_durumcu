@@ -1439,14 +1439,9 @@
         ========================================= -->
 
         <div class="card">
-            <div class="verify-actions">
-                <button type="button" class="main-button direct-order-button" onclick="openDirectOrderVerification()">
-                    ✓ Onayla
-                </button>
-                <button type="button" class="main-button whatsapp-button" onclick="sendToWhatsApp()">
-                    💬 WhatsApp'tan Gönder
-                </button>
-            </div>
+            <button type="button" class="main-button whatsapp-button" onclick="sendToWhatsApp()">
+                ✓ Onayla ve WhatsApp'tan Gönder
+            </button>
 
             <button
                 type="button"
@@ -1836,24 +1831,6 @@
 
 
 
-<!-- DOĞRUDAN SİPARİŞ / WHATSAPP TELEFON KODU -->
-<div id="directVerifyModal" class="verify-modal hidden">
-  <div class="verify-modal-card">
-    <h2>📱 Telefon ile Siparişi Onayla</h2>
-    <p class="small" style="text-align:left">Telefon numaranızı girin. WhatsApp'ta kendi numaranıza doğrulama kodu içeren hazır mesaj açılacak. Kodu aşağıya girince siparişiniz kesinleşir.</p>
-    <label>Telefon numarası</label>
-    <input id="directPhoneInput" type="tel" inputmode="tel" placeholder="05xx xxx xx xx">
-    <button type="button" class="main-button whatsapp-button" onclick="sendDirectVerificationCode()">💬 WhatsApp Doğrulama Kodunu Aç</button>
-    <div id="directCodeArea" class="hidden" style="margin-top:14px">
-      <label>6 haneli güvenlik kodu</label>
-      <input id="directCodeInput" type="text" inputmode="numeric" maxlength="6" placeholder="000000">
-      <button type="button" class="main-button direct-order-button" onclick="verifyDirectOrder()">✓ Kodu Doğrula ve Siparişi Ver</button>
-    </div>
-    <div id="directVerifyStatus" class="verify-status"></div>
-    <button type="button" class="main-button back-button" onclick="closeDirectOrderVerification()">Kapat</button>
-  </div>
-</div>
-
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="supabase-config.js"></script>
 <script>
@@ -1861,6 +1838,7 @@
         window.SUPABASE_CONFIG.url,
         window.SUPABASE_CONFIG.key
     );
+
 </script>
 
 <script>
@@ -1909,7 +1887,6 @@
 
     let selectedReviewRating = 0;
     let appliedCoupons = [];
-    let directVerification = null;
 
 
     /* =========================================
@@ -3105,15 +3082,6 @@
        WHATSAPP
     ========================================= */
 
-    function normalizePhoneNumber(value) {
-        let digits = String(value || "").replace(/\D/g, "");
-        if (digits.startsWith("00")) digits = digits.slice(2);
-        if (digits.startsWith("0")) digits = "90" + digits.slice(1);
-        else if (digits.length === 10) digits = "90" + digits;
-        if (!digits.startsWith("90") || digits.length !== 12) return null;
-        return digits;
-    }
-
     function getOrderRpcPayload() {
         return {
             p_name: order.name,
@@ -3126,68 +3094,6 @@
             p_items: order.items.map(item => ({ productId: item.productId, quantity: Number(item.quantity) })).filter(item => item.quantity > 0),
             p_coupon_codes: order.couponCodes || []
         };
-    }
-
-    function openDirectOrderVerification() {
-        if (!order.name || !order.address || !order.payment || !order.items.length) {
-            alert("Önce sipariş bilgilerini eksiksiz hazırlayın.");
-            return;
-        }
-        directVerification = null;
-        document.getElementById("directCodeArea").classList.add("hidden");
-        document.getElementById("directCodeInput").value = "";
-        document.getElementById("directVerifyStatus").textContent = "";
-        document.getElementById("directVerifyModal").classList.remove("hidden");
-    }
-
-    function closeDirectOrderVerification() {
-        document.getElementById("directVerifyModal").classList.add("hidden");
-    }
-
-    async function sendDirectVerificationCode() {
-        const status = document.getElementById("directVerifyStatus");
-        const phone = normalizePhoneNumber(document.getElementById("directPhoneInput").value);
-        if (!phone) {
-            status.textContent = "Geçerli bir Türkiye cep telefonu numarası girin.";
-            return;
-        }
-        status.textContent = "Kod hazırlanıyor...";
-        const { data, error } = await supabaseClient.rpc("begin_phone_whatsapp_verification", { p_phone: phone });
-        if (error) {
-            console.error(error);
-            status.textContent = "Kod oluşturulamadı: " + error.message;
-            return;
-        }
-        directVerification = { challengeId: data.challenge_id, phone };
-        document.getElementById("directCodeArea").classList.remove("hidden");
-        status.textContent = "WhatsApp mesajı açıldı. Mesajdaki 6 haneli kodu aşağıya girin.";
-        const text = `Telefonunuzun doğrulanması için bu güvenlik kodunu kullanınız: ${data.code}`;
-        const url = "https://wa.me/" + phone + "?text=" + encodeURIComponent(text);
-        const opened = window.open(url, "_blank");
-        if (!opened) window.location.href = url;
-    }
-
-    async function verifyDirectOrder() {
-        const status = document.getElementById("directVerifyStatus");
-        const code = document.getElementById("directCodeInput").value.replace(/\D/g, "");
-        if (!directVerification || code.length !== 6) {
-            status.textContent = "6 haneli güvenlik kodunu girin.";
-            return;
-        }
-        status.textContent = "Doğrulanıyor ve sipariş oluşturuluyor...";
-        const payload = getOrderRpcPayload();
-        payload.p_phone = directVerification.phone;
-        payload.p_challenge_id = directVerification.challengeId;
-        payload.p_code = code;
-        const { data, error } = await supabaseClient.rpc("create_verified_order_with_coupons", payload);
-        if (error) {
-            console.error(error);
-            status.textContent = "Doğrulama başarısız: " + error.message;
-            return;
-        }
-        closeDirectOrderVerification();
-        alert(`Siparişiniz başarıyla alındı. Sipariş No: #${data.id}`);
-        resetOrderState();
     }
 
     async function sendToWhatsApp() {
@@ -3220,10 +3126,19 @@ Ara Toplam: ${savedSubtotal.toLocaleString("tr-TR")} TL
         message += `Toplam: ${savedTotal.toLocaleString("tr-TR")} TL
 Adresim: ${order.address}
 `;
-        if (order.googleMapsUrl) message += `
+        if (order.googleMapsUrl) {
+            const qrUrl =
+                "https://api.qrserver.com/v1/create-qr-code/?size=600x600&data=" +
+                encodeURIComponent(order.googleMapsUrl);
+            message += `
 📍 Google Maps Konumu:
 ${order.googleMapsUrl}
 `;
+            message += `
+📱 Konum QR Kodu:
+${qrUrl}
+`;
+        }
         message += `
 Ödeme: ${order.payment}
 `;
@@ -3234,7 +3149,7 @@ Sipariş No: #${data.id}`;
         message += `
 🔐 Güvenlik Kodu: ${data.security_code}`;
         message += `
-Bu kod, WhatsApp siparişinin işletme tarafından doğrulanması için kullanılacaktır.`;
+Bu güvenlik kodu siparişinizin işletme tarafından doğrulanması için kullanılacaktır.`;
 
         const businessPhone = "905451014563";
         const whatsappUrl = "https://wa.me/" + businessPhone + "?text=" + encodeURIComponent(message);
