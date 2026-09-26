@@ -1836,17 +1836,17 @@
 
 
 
-<!-- DOĞRUDAN SİPARİŞ / GERÇEK WHATSAPP OTP -->
+<!-- DOĞRUDAN SİPARİŞ / WHATSAPP TELEFON KODU -->
 <div id="directVerifyModal" class="verify-modal hidden">
   <div class="verify-modal-card">
-    <h2>📱 Telefonunu Doğrula</h2>
-    <p class="small" style="text-align:left">Telefon numaranızı girin. 6 haneli doğrulama kodu WhatsApp üzerinden doğrudan bu numaraya gönderilecek. Kod doğrulanmadan sipariş oluşturulmaz.</p>
+    <h2>📱 Telefon ile Siparişi Onayla</h2>
+    <p class="small" style="text-align:left">Telefon numaranızı girin. WhatsApp'ta kendi numaranıza doğrulama kodu içeren hazır mesaj açılacak. Kodu aşağıya girince siparişiniz kesinleşir.</p>
     <label>Telefon numarası</label>
-    <input id="directPhoneInput" type="tel" inputmode="tel" autocomplete="tel" placeholder="05xx xxx xx xx">
-    <button type="button" class="main-button whatsapp-button" onclick="sendDirectVerificationCode()">💬 WhatsApp ile Kod Gönder</button>
+    <input id="directPhoneInput" type="tel" inputmode="tel" placeholder="05xx xxx xx xx">
+    <button type="button" class="main-button whatsapp-button" onclick="sendDirectVerificationCode()">💬 WhatsApp Doğrulama Kodunu Aç</button>
     <div id="directCodeArea" class="hidden" style="margin-top:14px">
-      <label>WhatsApp'a gelen 6 haneli kod</label>
-      <input id="directCodeInput" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="000000">
+      <label>6 haneli güvenlik kodu</label>
+      <input id="directCodeInput" type="text" inputmode="numeric" maxlength="6" placeholder="000000">
       <button type="button" class="main-button direct-order-button" onclick="verifyDirectOrder()">✓ Kodu Doğrula ve Siparişi Ver</button>
     </div>
     <div id="directVerifyStatus" class="verify-status"></div>
@@ -1860,19 +1860,6 @@
     const supabaseClient = window.supabase.createClient(
         window.SUPABASE_CONFIG.url,
         window.SUPABASE_CONFIG.key
-    );
-
-    // Telefon OTP doğrulaması için ayrı client. Ana/admin oturumunu ezmez.
-    const phoneAuthClient = window.supabase.createClient(
-        window.SUPABASE_CONFIG.url,
-        window.SUPABASE_CONFIG.key,
-        {
-            auth: {
-                persistSession: false,
-                autoRefreshToken: false,
-                detectSessionInUrl: false
-            }
-        }
     );
 </script>
 
@@ -3159,73 +3146,47 @@
 
     async function sendDirectVerificationCode() {
         const status = document.getElementById("directVerifyStatus");
-        const phoneDigits = normalizePhoneNumber(document.getElementById("directPhoneInput").value);
-        if (!phoneDigits) {
+        const phone = normalizePhoneNumber(document.getElementById("directPhoneInput").value);
+        if (!phone) {
             status.textContent = "Geçerli bir Türkiye cep telefonu numarası girin.";
             return;
         }
-
-        const phone = "+" + phoneDigits;
-        status.textContent = "WhatsApp doğrulama kodu gönderiliyor...";
-        document.getElementById("directCodeArea").classList.add("hidden");
-
-        const { error } = await phoneAuthClient.auth.signInWithOtp({
-            phone,
-            options: {
-                channel: "whatsapp",
-                shouldCreateUser: true
-            }
-        });
-
+        status.textContent = "Kod hazırlanıyor...";
+        const { data, error } = await supabaseClient.rpc("begin_phone_whatsapp_verification", { p_phone: phone });
         if (error) {
             console.error(error);
-            directVerification = null;
-            status.textContent = "Kod gönderilemedi: " + error.message;
+            status.textContent = "Kod oluşturulamadı: " + error.message;
             return;
         }
-
-        directVerification = { phone };
+        directVerification = { challengeId: data.challenge_id, phone };
         document.getElementById("directCodeArea").classList.remove("hidden");
-        document.getElementById("directCodeInput").value = "";
-        status.textContent = "Kod WhatsApp üzerinden gönderildi. Telefonunuza gelen 6 haneli kodu girin.";
-        document.getElementById("directCodeInput").focus();
+        status.textContent = "WhatsApp mesajı açıldı. Mesajdaki 6 haneli kodu aşağıya girin.";
+        const text = `Telefonunuzun doğrulanması için bu güvenlik kodunu kullanınız: ${data.code}`;
+        const url = "https://wa.me/" + phone + "?text=" + encodeURIComponent(text);
+        const opened = window.open(url, "_blank");
+        if (!opened) window.location.href = url;
     }
 
     async function verifyDirectOrder() {
         const status = document.getElementById("directVerifyStatus");
         const code = document.getElementById("directCodeInput").value.replace(/\D/g, "");
         if (!directVerification || code.length !== 6) {
-            status.textContent = "WhatsApp'a gelen 6 haneli doğrulama kodunu girin.";
+            status.textContent = "6 haneli güvenlik kodunu girin.";
             return;
         }
-
-        status.textContent = "Telefon doğrulanıyor...";
-        const { data: verifyData, error: verifyError } = await phoneAuthClient.auth.verifyOtp({
-            phone: directVerification.phone,
-            token: code,
-            type: "sms"
-        });
-
-        if (verifyError || !verifyData?.session) {
-            console.error(verifyError);
-            status.textContent = "Telefon doğrulanamadı: " + (verifyError?.message || "Geçersiz doğrulama kodu.");
-            return;
-        }
-
-        status.textContent = "Telefon doğrulandı. Sipariş oluşturuluyor...";
+        status.textContent = "Doğrulanıyor ve sipariş oluşturuluyor...";
         const payload = getOrderRpcPayload();
-        const { data, error } = await phoneAuthClient.rpc("create_phone_verified_order_with_coupons", payload);
-
+        payload.p_phone = directVerification.phone;
+        payload.p_challenge_id = directVerification.challengeId;
+        payload.p_code = code;
+        const { data, error } = await supabaseClient.rpc("create_verified_order_with_coupons", payload);
         if (error) {
             console.error(error);
-            status.textContent = "Sipariş oluşturulamadı: " + error.message;
+            status.textContent = "Doğrulama başarısız: " + error.message;
             return;
         }
-
-        await phoneAuthClient.auth.signOut();
-        directVerification = null;
         closeDirectOrderVerification();
-        alert(`Telefonunuz doğrulandı. Siparişiniz başarıyla alındı. Sipariş No: #${data.id}`);
+        alert(`Siparişiniz başarıyla alındı. Sipariş No: #${data.id}`);
         resetOrderState();
     }
 
@@ -3259,19 +3220,10 @@ Ara Toplam: ${savedSubtotal.toLocaleString("tr-TR")} TL
         message += `Toplam: ${savedTotal.toLocaleString("tr-TR")} TL
 Adresim: ${order.address}
 `;
-        if (order.googleMapsUrl) {
-            const qrUrl =
-                "https://api.qrserver.com/v1/create-qr-code/?size=600x600&data=" +
-                encodeURIComponent(order.googleMapsUrl);
-            message += `
+        if (order.googleMapsUrl) message += `
 📍 Google Maps Konumu:
 ${order.googleMapsUrl}
 `;
-            message += `
-📱 Konum QR Kodu:
-${qrUrl}
-`;
-        }
         message += `
 Ödeme: ${order.payment}
 `;
