@@ -2393,6 +2393,34 @@
         return "https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(address || "");
     }
 
+    function createGoogleMapsDirectionsAddressUrl(address) {
+        return (
+            "https://www.google.com/maps/dir/?api=1" +
+            "&destination=" + encodeURIComponent(address || "") +
+            "&travelmode=driving" +
+            "&dir_action=navigate"
+        );
+    }
+
+    function buildGoogleMapsDestinationFromDraft(draft) {
+        const parts = [];
+        const neighborhood = String(draft?.neighborhoodName || "").trim();
+        const street = normalizeStreetLabel(draft?.street || "");
+        const buildingNo = String(draft?.buildingNo || "").trim();
+        const district = String(draft?.districtName || "").trim();
+        const province = String(draft?.provinceName || "").trim();
+
+        if (neighborhood) {
+            parts.push(neighborhood + (neighborhood.toLocaleLowerCase("tr-TR").includes("mah") ? "" : " Mahallesi"));
+        }
+        if (street) parts.push(street);
+        if (buildingNo) parts.push("No:" + buildingNo);
+        if (district || province) parts.push([district, province].filter(Boolean).join("/"));
+        parts.push("Türkiye");
+
+        return parts.filter(Boolean).join(", ");
+    }
+
 
     /* =========================================
        KADEMELİ MANUEL ADRES
@@ -2696,9 +2724,10 @@
             order.address = address;
             order.latitude = verified.latitude;
             order.longitude = verified.longitude;
-            // Manuel adres doğrulamasında bulunan gerçek koordinata doğrudan yol tarifi açılır.
-            // Teslimat metnindeki daire/ek adres bilgileri order.address içinde ayrıca korunur.
-            order.googleMapsUrl = createGoogleMapsUrl(verified.latitude, verified.longitude);
+            // Manuel adreste Nominatim koordinatı yalnızca doğrulama için tutulur.
+            // Google Maps rotası, Google'ın kendi adres verisiyle çözebilmesi için tam teslimat adresi üzerinden açılır.
+            const mapsDestination = buildGoogleMapsDestinationFromDraft(addressDraft);
+            order.googleMapsUrl = createGoogleMapsDirectionsAddressUrl(mapsDestination);
             document.getElementById("customerAddress").value = address;
             document.getElementById("addressPreview").textContent = address;
             document.getElementById("locationStatus").textContent = "✅ Adres doğrulandı. Google Maps konumu ve QR kodu hazır.";
@@ -3551,8 +3580,11 @@
 
                 order.latitude = verifiedAddress.latitude;
                 order.longitude = verifiedAddress.longitude;
-                order.googleMapsUrl = createGoogleMapsUrl(verifiedAddress.latitude, verifiedAddress.longitude);
-                if (locationStatus) locationStatus.textContent = "✅ Adres bulundu. Google Maps konumu ve QR kodu hazır.";
+                const manualDestination = (order.provinceName && order.districtName && order.neighborhoodName && order.street && order.buildingNo)
+                    ? buildGoogleMapsDestinationFromDraft(order)
+                    : address;
+                order.googleMapsUrl = createGoogleMapsDirectionsAddressUrl(manualDestination);
+                if (locationStatus) locationStatus.textContent = "✅ Adres bulundu. Google Maps yol tarifi ve QR kodu hazır.";
             } catch (error) {
                 console.error("Manuel adres doğrulama hatası:", error);
                 if (locationStatus) locationStatus.textContent = "❌ Adres kontrolü yapılamadı.";
