@@ -160,15 +160,6 @@
             margin: 0;
             cursor: pointer;
         }
-        .address-edit-button {
-            width: auto;
-            min-width: 116px;
-            border: 0;
-            border-radius: 10px;
-            padding: 0 14px;
-            font-weight: 700;
-            cursor: pointer;
-        }
         .address-modal {
             position: fixed;
             inset: 0;
@@ -1343,7 +1334,6 @@
             <input id="customerAddress" type="hidden">
             <div class="address-picker-row">
                 <div id="addressPreview" class="address-preview" role="button" tabindex="0" onclick="openAddressModal()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openAddressModal();}">Adres seçiminiz burada görünecek.</div>
-                <button type="button" class="address-edit-button" onclick="openAddressModal()" id="addressEditButton">Adres Gir</button>
             </div>
 
             <!-- KONUM DURUMU -->
@@ -1418,7 +1408,7 @@
             <select id="districtSelect" onchange="handleDistrictChange()" disabled>
                 <option value="">Önce il seçin</option>
             </select>
-            <select id="neighborhoodSelect" onchange="handleManualAddressChange();updateAddressConfirmButton()" disabled>
+            <select id="neighborhoodSelect" onchange="handleNeighborhoodChange()" disabled>
                 <option value="">Önce ilçe seçin</option>
             </select>
             <input id="streetInput" type="text" placeholder="Cadde / sokak adı">
@@ -2068,7 +2058,6 @@
             document.getElementById("customerName").value = order.name;
             document.getElementById("customerAddress").value = order.address;
             document.getElementById("addressPreview").textContent = order.address || "Adres seçiminiz burada görünecek.";
-            document.getElementById("addressEditButton").textContent = order.address ? "Düzenle" : "Adres Gir";
             document.getElementById("orderNote").value = order.note;
 
             document.querySelectorAll('input[name="payment"]').forEach(input => {
@@ -2547,13 +2536,44 @@
         }
     }
 
+    function resetAddressFieldsFrom(level) {
+        const district = document.getElementById("districtSelect");
+        const neighborhood = document.getElementById("neighborhoodSelect");
+        const street = document.getElementById("streetInput");
+        const building = document.getElementById("buildingNoInput");
+        const apartment = document.getElementById("apartmentNoInput");
+        const detail = document.getElementById("addressDetailInput");
+
+        if (level === "province") {
+            district.innerHTML = '<option value="">Önce il seçin</option>';
+            district.disabled = true;
+        }
+        if (level === "province" || level === "district") {
+            neighborhood.innerHTML = '<option value="">Önce ilçe seçin</option>';
+            neighborhood.disabled = true;
+        }
+        if (["province","district","neighborhood"].includes(level)) {
+            if (street) street.value = "";
+            if (building) building.value = "";
+            if (apartment) apartment.value = "";
+            if (detail) detail.value = "";
+        }
+    }
+
     async function handleProvinceChange() {
         if (!addressDraft) addressDraft = cloneAddressDraftFromOrder();
         const province = document.getElementById("provinceSelect");
         const selected = province.options[province.selectedIndex];
         addressDraft.provinceId = province.value;
-        addressDraft.provinceName = selected?.dataset?.name || selected?.textContent || "";
-        addressDraft.districtId = ""; addressDraft.districtName = ""; addressDraft.neighborhoodName = "";
+        addressDraft.provinceName = province.value ? (selected?.dataset?.name || selected?.textContent || "") : "";
+        addressDraft.districtId = "";
+        addressDraft.districtName = "";
+        addressDraft.neighborhoodName = "";
+        addressDraft.street = "";
+        addressDraft.buildingNo = "";
+        addressDraft.apartmentNo = "";
+        addressDraft.addressDetail = "";
+        resetAddressFieldsFrom("province");
         if (province.value) await loadDistricts(province.value);
         handleManualAddressChange();
         updateAddressConfirmButton();
@@ -2564,9 +2584,29 @@
         const district = document.getElementById("districtSelect");
         const selected = district.options[district.selectedIndex];
         addressDraft.districtId = district.value;
-        addressDraft.districtName = selected?.dataset?.name || selected?.textContent || "";
+        addressDraft.districtName = district.value ? (selected?.dataset?.name || selected?.textContent || "") : "";
         addressDraft.neighborhoodName = "";
+        addressDraft.street = "";
+        addressDraft.buildingNo = "";
+        addressDraft.apartmentNo = "";
+        addressDraft.addressDetail = "";
+        resetAddressFieldsFrom("district");
         if (district.value) await loadNeighborhoods(district.value);
+        handleManualAddressChange();
+        updateAddressConfirmButton();
+    }
+
+    function handleNeighborhoodChange() {
+        if (!addressDraft) addressDraft = cloneAddressDraftFromOrder();
+        const neighborhood = document.getElementById("neighborhoodSelect");
+        if (!neighborhood.value) {
+            addressDraft.neighborhoodName = "";
+            addressDraft.street = "";
+            addressDraft.buildingNo = "";
+            addressDraft.apartmentNo = "";
+            addressDraft.addressDetail = "";
+            resetAddressFieldsFrom("neighborhood");
+        }
         handleManualAddressChange();
         updateAddressConfirmButton();
     }
@@ -2582,13 +2622,18 @@
         addressDraft.addressDetail = document.getElementById("addressDetailInput")?.value.trim() || "";
     }
 
+    function normalizeStreetLabel(value) {
+        const street = String(value || "").trim();
+        if (!street) return "";
+        return /^\d+$/.test(street) ? street + " Sokak" : street;
+    }
+
     function buildAddressFromDraft(draft) {
         const parts = [];
         if (draft.neighborhoodName) parts.push(draft.neighborhoodName + (draft.neighborhoodName.toLocaleLowerCase("tr-TR").includes("mah") ? "" : " Mah."));
-        if (draft.street) parts.push(draft.street);
+        if (draft.street) parts.push(normalizeStreetLabel(draft.street));
         if (draft.buildingNo) parts.push("No:" + draft.buildingNo);
         if (draft.apartmentNo) parts.push("Daire:" + draft.apartmentNo);
-        if (draft.addressDetail) parts.push(draft.addressDetail);
         if (draft.districtName || draft.provinceName) parts.push([draft.districtName, draft.provinceName].filter(Boolean).join("/"));
         return parts.join(", ");
     }
@@ -2619,7 +2664,7 @@
 
     function buildGeocodeQueries(draft) {
         const outerNo = getOuterBuildingNumber(draft.buildingNo);
-        const street = String(draft.street || "").trim();
+        const street = normalizeStreetLabel(draft.street);
         const neighborhood = String(draft.neighborhoodName || "").trim();
         const district = String(draft.districtName || "").trim();
         const province = String(draft.provinceName || "").trim();
@@ -2655,7 +2700,6 @@
             order.googleMapsUrl = createGoogleMapsAddressUrl(address);
             document.getElementById("customerAddress").value = address;
             document.getElementById("addressPreview").textContent = address;
-            document.getElementById("addressEditButton").textContent = "Düzenle";
             document.getElementById("locationStatus").textContent = "✅ Adres doğrulandı. Google Maps konumu ve QR kodu hazır.";
             saveOrder();
             closeAddressModal();
@@ -3099,8 +3143,6 @@
                     order.districtId = ""; order.districtName = "";
                     order.neighborhoodName = ""; order.street = "";
                     order.buildingNo = ""; order.apartmentNo = ""; order.addressDetail = "";
-                    const editButton = document.getElementById("addressEditButton");
-                    if (editButton) editButton.textContent = "Düzenle";
 
 
                     /*
@@ -3600,7 +3642,6 @@
         document.getElementById("customerName").value = "";
         document.getElementById("customerAddress").value = "";
         ["provinceSelect","districtSelect","neighborhoodSelect"].forEach(id => { const el=document.getElementById(id); if(el) el.value=""; });
-        const addressEditButton=document.getElementById("addressEditButton"); if(addressEditButton) addressEditButton.textContent="Adres Gir";
         const preview=document.getElementById("addressPreview"); if(preview) preview.textContent="Adres seçiminiz burada görünecek.";
         document.getElementById("orderNote").value = "";
         document.querySelectorAll('input[name="payment"]').forEach(input => input.checked = false);
@@ -3661,6 +3702,8 @@ Ara Toplam: ${savedSubtotal.toLocaleString("tr-TR")} TL
 `;
         message += `Toplam: ${savedTotal.toLocaleString("tr-TR")} TL
 Adresim: ${order.address}
+`;
+        if (order.addressDetail) message += `Adres tarifi: ${order.addressDetail}
 `;
         if (order.googleMapsUrl) {
             const qrUrl =
