@@ -2396,10 +2396,37 @@
     const TURKIYE_API_BASE = "https://api.turkiyeapi.dev/v2";
 
     async function fetchTurkeyAddressData(path) {
-        const response = await fetch(TURKIYE_API_BASE + path, { headers: { "Accept": "application/json" } });
-        if (!response.ok) throw new Error("Adres listesi alınamadı.");
+        const response = await fetch(TURKIYE_API_BASE + path, {
+            method: "GET",
+            mode: "cors",
+            cache: "no-store",
+            headers: { "Accept": "application/json" }
+        });
+        if (!response.ok) {
+            let detail = "";
+            try {
+                const payload = await response.json();
+                detail = payload?.error?.message || payload?.message || "";
+            } catch (_) {}
+            throw new Error(detail || `Adres listesi alınamadı (${response.status}).`);
+        }
         const payload = await response.json();
         return Array.isArray(payload?.data) ? payload.data : [];
+    }
+
+    async function fetchTurkeyAddressDataWithFallback(paths) {
+        let lastError = null;
+        for (const path of paths) {
+            try {
+                const rows = await fetchTurkeyAddressData(path);
+                if (rows.length) return rows;
+            } catch (error) {
+                lastError = error;
+                console.warn("Adres API alternatifi başarısız:", path, error);
+            }
+        }
+        if (lastError) throw lastError;
+        return [];
     }
 
     function fillSelect(select, items, placeholder, selectedValue = "") {
@@ -2462,7 +2489,12 @@
         neighborhood.disabled = true;
         neighborhood.innerHTML = '<option value="">Önce ilçe seçin</option>';
         try {
-            const districts = await fetchTurkeyAddressData(`/provinces/${encodeURIComponent(provinceId)}/districts?fields=id,name&sort=name&limit=1000`);
+            const id = encodeURIComponent(provinceId);
+            const districts = await fetchTurkeyAddressDataWithFallback([
+                `/provinces/${id}/districts?fields=id,name&sort=name&limit=1000`,
+                `/districts?provinceId=${id}&fields=id,name&sort=name&limit=1000`
+            ]);
+            if (!districts.length) throw new Error("Bu il için ilçe listesi boş döndü.");
             fillSelect(select, districts, "İlçe seçin", selectedDistrictId);
             select.disabled = false;
             if (selectedDistrictId) await loadNeighborhoods(selectedDistrictId, selectedNeighborhoodName);
@@ -2477,7 +2509,12 @@
         select.disabled = true;
         select.innerHTML = '<option value="">Mahalleler yükleniyor...</option>';
         try {
-            const neighborhoods = await fetchTurkeyAddressData(`/districts/${encodeURIComponent(districtId)}/neighborhoods?fields=id,name&sort=name&limit=1000`);
+            const id = encodeURIComponent(districtId);
+            const neighborhoods = await fetchTurkeyAddressDataWithFallback([
+                `/districts/${id}/neighborhoods?fields=id,name&sort=name&limit=1000`,
+                `/neighborhoods?districtId=${id}&fields=id,name&sort=name&limit=1000`
+            ]);
+            if (!neighborhoods.length) throw new Error("Bu ilçe için mahalle listesi boş döndü.");
             fillSelect(select, neighborhoods, "Mahalle seçin", "");
             if (selectedNeighborhoodName) {
                 const option = [...select.options].find(o => o.dataset.name === selectedNeighborhoodName || o.textContent === selectedNeighborhoodName);
