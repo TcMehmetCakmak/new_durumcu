@@ -3152,10 +3152,38 @@ Sipariş No: #${data.id}`;
 Bu güvenlik kodu siparişinizin işletme tarafından doğrulanması için kullanılacaktır.`;
 
         const businessPhone = "905451014563";
-        const whatsappUrl = "https://wa.me/" + businessPhone + "?text=" + encodeURIComponent(message);
-        resetOrderState();
-        const opened = window.open(whatsappUrl, "_blank");
-        if (!opened) window.location.href = whatsappUrl;
+        const whatsappAppUrl =
+            "whatsapp://send?phone=" + businessPhone + "&text=" + encodeURIComponent(message);
+
+        let whatsappOpened = false;
+        let detectionTimer = null;
+
+        const markWhatsAppOpened = () => {
+            if (whatsappOpened) return;
+            whatsappOpened = true;
+            if (detectionTimer) clearTimeout(detectionTimer);
+            document.removeEventListener("visibilitychange", onVisibilityChange);
+            window.removeEventListener("pagehide", markWhatsAppOpened);
+            resetOrderState();
+        };
+
+        const onVisibilityChange = () => {
+            if (document.hidden) markWhatsAppOpened();
+        };
+
+        document.addEventListener("visibilitychange", onVisibilityChange);
+        window.addEventListener("pagehide", markWhatsAppOpened, { once: true });
+
+        // WhatsApp yüklüyse uygulamayı doğrudan açar ve hazır metni sohbete taşır.
+        // Yüklü değilse web.whatsapp.com / wa.me fallback'i kullanılmaz.
+        window.location.href = whatsappAppUrl;
+
+        detectionTimer = setTimeout(() => {
+            if (whatsappOpened || document.hidden) return;
+            document.removeEventListener("visibilitychange", onVisibilityChange);
+            window.removeEventListener("pagehide", markWhatsAppOpened);
+            alert("WhatsApp bulunamadı. Lütfen WhatsApp uygulamasını yükleyip tekrar deneyin.");
+        }, 1800);
     }
 
     /* =========================================
